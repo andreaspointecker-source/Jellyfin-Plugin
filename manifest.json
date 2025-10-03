@@ -1,21 +1,19 @@
-[
-  {
-    "guid": "a8f6c9e2-4d3b-4f2a-9e1c-8b7a6c5d4e3f",
-    "name": "IPTV Streamer",
-    "description": "Professionelles IPTV-Plugin mit Xtream Codes und M3U-Unterstützung für Live-TV, VOD-Filme und Serien.",
-    "overview": "Vollständige IPTV-Lösung für Jellyfin mit Unterstützung für alle gängigen IPTV-Provider",
-    "owner": "andreaspointecker-source",
-    "category": "LiveTV",
-    "imageUrl": "https://raw.githubusercontent.com/andreaspointecker-source/Jellyfin-Plugin/main/assets/logo.png",
-    "versions": [
-      {
-        "version": "1.0.0.0",
-        "changelog": "Initiales Release - Kompatibel mit Jellyfin 10.8.x und .NET 6.0",
-        "targetAbi": "10.8.13.0",
-        "sourceUrl": "https://github.com/andreaspointecker-source/Jellyfin-Plugin/releases/download/v1.0.0/jellyfin-plugin-iptv_1.0.0.0.zip",
-        "checksum": "WIRD_NACH_BUILD_GENERIERT",
-        "timestamp": "2025-01-15T10:00:00Z"
-      }
-    ]
-  }
-]
+﻿{
+    "guid":  "a8f6c9e2-4d3b-4f2a-9e1c-8b7a6c5d4e3f",
+    "name":  "IPTV Streamer",
+    "description":  "Professionelles IPTV-Plugin mit Xtream Codes und M3U-UnterstÃ¼tzung fÃ¼r Live-TV, VOD-Filme und Serien.",
+    "overview":  "VollstÃ¤ndige IPTV-LÃ¶sung fÃ¼r Jellyfin mit UnterstÃ¼tzung fÃ¼r alle gÃ¤ngigen IPTV-Provider",
+    "owner":  "andreaspointecker-source",
+    "category":  "LiveTV",
+    "imageUrl":  "https://raw.githubusercontent.com/andreaspointecker-source/Jellyfin-Plugin/main/assets/logo.png",
+    "versions":  [
+                     {
+                         "version":  "1.0.0.0",
+                         "changelog":  "Initiales Release - Kompatibel mit Jellyfin 10.10.x und .NET 8.0",
+                         "targetAbi":  "10.10.0.0",
+                         "sourceUrl":  "https://github.com/andreaspointecker-source/Jellyfin-Plugin/releases/download/v1.0.0/jellyfin-plugin-iptv_1.0.0.0.zip",
+                         "checksum":  "CAEADCA27533C0A7ABF83AC3C74FE4586F81AD9959B8BF7DB6B48A3E1263D2D6",
+                         "timestamp":  "2025-10-03T11:09:55Z"
+                     }
+                 ]
+}
