@@ -1,8 +1,8 @@
 {
     "guid":  "a8f6c9e2-4d3b-4f2a-9e1c-8b7a6c5d4e3f",
     "name":  "IPTV Streamer",
-    "description":  "Professionelles IPTV-Plugin mit Xtream Codes und M3U-UnterstÃ¼tzung fÃ¼r Live-TV, VOD-Filme und Serien.",
-    "overview":  "VollstÃ¤ndige IPTV-LÃ¶sung fÃ¼r Jellyfin mit UnterstÃ¼tzung fÃ¼r alle gÃ¤ngigen IPTV-Provider",
+    "description":  "Professionelles IPTV-Plugin mit Xtream Codes und M3U-Unterstützung für Live-TV, VOD-Filme und Serien.",
+    "overview":  "Vollständige IPTV-Lösung für Jellyfin mit Unterstützung für alle gängigen IPTV-Provider",
     "owner":  "andreaspointecker-source",
     "category":  "LiveTV",
     "imageUrl":  "https://raw.githubusercontent.com/andreaspointecker-source/Jellyfin-Plugin/main/assets/logo.png",
@@ -17,3 +17,4 @@
                      }
                  ]
 }
+
