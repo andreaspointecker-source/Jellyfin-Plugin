@@ -164,7 +164,7 @@ public partial class StreamService
     }
 
     /// <summary>
-    /// Gets an async iterator for the configured channels after applying the configured overrides.
+    /// Gets an async iterator for the configured channels after applying custom channel list ordering.
     /// </summary>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>IAsyncEnumerable{StreamInfo}.</returns>
@@ -172,17 +172,37 @@ public partial class StreamService
     {
         PluginConfiguration config = Plugin.Instance.Configuration;
         IEnumerable<StreamInfo> streams = await GetLiveStreams(cancellationToken).ConfigureAwait(false);
-        return streams.Select((StreamInfo stream) =>
+
+        // Apply custom channel list ordering if configured
+        if (config.ChannelMappings != null && config.ChannelMappings.Count > 0)
         {
-            if (config.LiveTvOverrides.TryGetValue(stream.StreamId, out ChannelOverrides? overrides))
+            var orderedStreams = new List<StreamInfo>();
+            // Use GroupBy to handle duplicate stream IDs - take the first occurrence
+            var streamById = streams
+                .GroupBy(s => s.StreamId)
+                .ToDictionary(g => g.Key, g => g.First());
+
+            // Get all mappings sorted by position
+            var sortedMappings = config.ChannelMappings.Values
+                .OrderBy(m => m.Position)
+                .ToList();
+
+            // Add ONLY streams in the order defined by channel lists
+            foreach (var mapping in sortedMappings)
             {
-                stream.Num = overrides.Number ?? stream.Num;
-                stream.Name = overrides.Name ?? stream.Name;
-                stream.StreamIcon = overrides.LogoUrl ?? stream.StreamIcon;
+                if (streamById.TryGetValue(mapping.StreamId, out var stream))
+                {
+                    // Update channel number based on position for proper EPG ordering
+                    stream.Num = mapping.Position + 1;
+                    orderedStreams.Add(stream);
+                }
             }
 
-            return stream;
-        });
+            // Return ONLY the streams that are in the custom channel list
+            return orderedStreams;
+        }
+
+        return streams;
     }
 
     /// <summary>

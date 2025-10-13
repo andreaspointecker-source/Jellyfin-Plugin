@@ -1,28 +1,169 @@
-<div id="XtreamLivePage" data-role="page" class="page type-interior pluginConfigurationPage withTabs"
-  data-require="emby-input,emby-button" data-controller="__plugin/XtreamLiveOverrides.js">
+<div id="XtreamLiveOverridesPage" data-role="page" class="page type-interior pluginConfigurationPage withTabs"
+  data-require="emby-input,emby-button,emby-checkbox" data-controller="__plugin/XtreamLiveOverrides.js">
   <div data-role="content">
     <div class="content-primary">
-      <form id="XtreamLiveOverridesForm">
+      <form id="XtreamOptimizationsForm">
         <div class="sectionTitleContainer flex align-items-center">
-          <h2 class="sectionTitle">TV channel overrides</h2>
+          <h2 class="sectionTitle">Single-Connection Optimierungen</h2>
         </div>
-        <div class="inputContainer">
-          <table class="overrides-table">
-            <thead>
-              <tr>
-                <th>Number</th>
-                <th>Name</th>
-                <th>Logo</th>
-              </tr>
-            </thead>
-            <tbody id="LiveChannels">
 
-            </tbody>
-          </table>
+        <div class="checkboxContainer checkboxContainer-withDescription">
+          <label>
+            <input is="emby-checkbox" id="EnableConnectionQueue" type="checkbox" />
+            <span>Verbindungs-Warteschlange aktivieren</span>
+          </label>
+          <div class="fieldDescription">
+            Stellt sicher, dass nur 1 API-Verbindung gleichzeitig zum Provider besteht. Verhindert "Max Connections" Fehler.
+          </div>
         </div>
+
+        <div class="checkboxContainer checkboxContainer-withDescription">
+          <label>
+            <input is="emby-checkbox" id="EnableExtendedCache" type="checkbox" />
+            <span>Erweiterte Caches aktivieren</span>
+          </label>
+          <div class="fieldDescription">
+            Speichert Metadaten länger (VOD/Serien: 24h, Kategorien: 12h). Reduziert API-Calls drastisch.
+          </div>
+        </div>
+
+        <div class="sectionTitleContainer flex align-items-center" style="margin-top: 30px;">
+          <h2 class="sectionTitle">Wartungsfenster</h2>
+        </div>
+        <div class="fieldDescription" style="margin-bottom: 15px;">
+          Automatische Synchronisation läuft nur in diesem Zeitfenster, um Konflikte beim Streaming zu vermeiden.
+        </div>
+
+        <div class="inputContainer">
+          <label class="inputLabel inputLabelUnfocused" for="MaintenanceStartHour">Start (Stunde 0-23)</label>
+          <input id="MaintenanceStartHour" type="number" min="0" max="23" is="emby-input" />
+        </div>
+
+        <div class="inputContainer">
+          <label class="inputLabel inputLabelUnfocused" for="MaintenanceEndHour">Ende (Stunde 0-23)</label>
+          <input id="MaintenanceEndHour" type="number" min="0" max="23" is="emby-input" />
+        </div>
+
+        <div class="checkboxContainer checkboxContainer-withDescription">
+          <label>
+            <input is="emby-checkbox" id="EnableEpgPreload" type="checkbox" />
+            <span>EPG-Daten vorladen</span>
+          </label>
+          <div class="fieldDescription">
+            Lädt TV-Guide im Wartungsfenster vor, statt bei Bedarf.
+          </div>
+        </div>
+
+        <div class="checkboxContainer checkboxContainer-withDescription">
+          <label>
+            <input is="emby-checkbox" id="EnableMetadataUpdate" type="checkbox" />
+            <span>Metadaten aktualisieren</span>
+          </label>
+          <div class="fieldDescription">
+            Aktualisiert VOD/Serien-Informationen im Wartungsfenster.
+          </div>
+        </div>
+
+        <div class="sectionTitleContainer flex align-items-center" style="margin-top: 30px;">
+          <h2 class="sectionTitle">Thumbnail-Cache</h2>
+        </div>
+
+        <div class="checkboxContainer checkboxContainer-withDescription">
+          <label>
+            <input is="emby-checkbox" id="EnableThumbnailCache" type="checkbox" />
+            <span>Thumbnail-Caching aktivieren</span>
+          </label>
+          <div class="fieldDescription">
+            Speichert Film/Serien-Thumbnails lokal. Reduziert Ladezeiten und Provider-Last.
+          </div>
+        </div>
+
+        <div class="inputContainer">
+          <label class="inputLabel inputLabelUnfocused" for="ThumbnailCacheRetentionDays">Aufbewahrungsdauer (Tage)</label>
+          <input id="ThumbnailCacheRetentionDays" type="number" min="1" max="365" is="emby-input" />
+          <div class="fieldDescription">
+            Thumbnails werden nach dieser Zeit automatisch geloescht (1-365 Tage).
+          </div>
+        </div>
+
+        <div id="thumbnailCacheStats" style="background: #2a2a2a; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div>
+              <div style="color: #888; font-size: 12px;">Gecachte Dateien</div>
+              <div id="cacheFileCount" style="font-size: 18px; margin-top: 5px; color: #00a4dc;">0</div>
+            </div>
+            <div>
+              <div style="color: #888; font-size: 12px;">Gesamtgroesse</div>
+              <div id="cacheTotalSize" style="font-size: 18px; margin-top: 5px; color: #4caf50;">0 MB</div>
+            </div>
+          </div>
+          <div style="margin-top: 15px;">
+            <button is="emby-button" type="button" id="clearCacheBtn" class="raised block emby-button" style="background: #f44336;">
+              <span>Cache leeren</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="sectionTitleContainer flex align-items-center" style="margin-top: 30px;">
+          <h2 class="sectionTitle">Verbindungsstatus</h2>
+        </div>
+
+        <div id="connectionStatus" style="background: #2a2a2a; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div>
+              <div style="color: #888; font-size: 12px;">Status</div>
+              <div id="statusIndicator" style="font-size: 18px; margin-top: 5px;">
+                <span style="color: #4caf50;">Bereit</span>
+              </div>
+            </div>
+            <div>
+              <div style="color: #888; font-size: 12px;">Warteschlange</div>
+              <div id="queueSize" style="font-size: 18px; margin-top: 5px; color: #00a4dc;">0</div>
+            </div>
+            <div>
+              <div style="color: #888; font-size: 12px;">Gesamte Anfragen</div>
+              <div id="totalRequests" style="font-size: 18px; margin-top: 5px; color: #fff;">0</div>
+            </div>
+            <div>
+              <div style="color: #888; font-size: 12px;">Cache-Trefferquote</div>
+              <div id="cacheHitRate" style="font-size: 18px; margin-top: 5px; color: #4caf50;">0%</div>
+            </div>
+            <div>
+              <div style="color: #888; font-size: 12px;">Thumbnail Cache Hit Rate</div>
+              <div id="thumbnailCacheHitRate" style="font-size: 18px; margin-top: 5px; color: #4caf50;">0%</div>
+            </div>
+            <div>
+              <div style="color: #888; font-size: 12px;">Gecachte Thumbnails</div>
+              <div id="thumbnailCachedImages" style="font-size: 18px; margin-top: 5px; color: #00a4dc;">0</div>
+            </div>
+            <div>
+              <div style="color: #888; font-size: 12px;">Thumbnail Anfragen</div>
+              <div id="thumbnailCacheRequests" style="font-size: 18px; margin-top: 5px; color: #fff;">0</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 10px;">
+          <button is="emby-button" type="button" id="testConnectionBtn" class="raised block emby-button" style="background: #00a4dc;">
+            <span>Testverbindung ausfuehren</span>
+          </button>
+          <div class="fieldDescription">
+            Fuehrt einen Test-API-Call durch um die Statistiken zu testen.
+          </div>
+        </div>
+
+        <div style="margin-bottom: 10px;">
+          <button is="emby-button" type="button" id="resetChannelOrderBtn" class="raised block emby-button" style="background: #ff9800;">
+            <span>Kanalliste zuruecksetzen</span>
+          </button>
+          <div class="fieldDescription">
+            Loescht die benutzerdefinierte Kanalreihenfolge und laedt alle Kanaele neu vom Provider. Behebt Fehler mit doppelten Sendern.
+          </div>
+        </div>
+
         <div>
           <button is="emby-button" type="submit" class="raised button-submit block emby-button">
-            <span>Save</span>
+            <span>Speichern</span>
           </button>
         </div>
       </form>

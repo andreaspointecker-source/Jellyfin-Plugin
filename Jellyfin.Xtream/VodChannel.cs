@@ -35,10 +35,11 @@ namespace Jellyfin.Xtream;
 /// The Xtream Codes API channel.
 /// </summary>
 /// <param name="logger">Instance of the <see cref="ILogger"/> interface.</param>
-public class VodChannel(ILogger<VodChannel> logger) : IChannel, IDisableMediaSourceDisplay
+/// <param name="thumbnailCache">Instance of the <see cref="ThumbnailCacheService"/> class.</param>
+public class VodChannel(ILogger<VodChannel> logger, ThumbnailCacheService thumbnailCache) : IChannel, IDisableMediaSourceDisplay
 {
     /// <inheritdoc />
-    public string? Name => "Xtream Video On-Demand";
+    public string? Name => "CandyTv Video On-Demand";
 
     /// <inheritdoc />
     public string? Description => "Video On-Demand streamed from the Xtream-compatible server.";
@@ -114,7 +115,7 @@ public class VodChannel(ILogger<VodChannel> logger) : IChannel, IDisableMediaSou
         }
     }
 
-    private Task<ChannelItemInfo> CreateChannelItemInfo(StreamInfo stream)
+    private async Task<ChannelItemInfo> CreateChannelItemInfo(StreamInfo stream)
     {
         long added = long.Parse(stream.Added, CultureInfo.InvariantCulture);
         ParsedName parsedName = StreamService.ParseName(stream.Name);
@@ -132,7 +133,7 @@ public class VodChannel(ILogger<VodChannel> logger) : IChannel, IDisableMediaSou
             ContentType = ChannelMediaContentType.Movie,
             DateCreated = DateTimeOffset.FromUnixTimeSeconds(added).DateTime,
             Id = $"{StreamService.StreamPrefix}{stream.StreamId}",
-            ImageUrl = stream.StreamIcon,
+            ImageUrl = await thumbnailCache.GetCachedUrlAsync(stream.StreamIcon).ConfigureAwait(false),
             IsLiveStream = false,
             MediaSources = sources,
             MediaType = ChannelMediaType.Video,
@@ -142,7 +143,7 @@ public class VodChannel(ILogger<VodChannel> logger) : IChannel, IDisableMediaSou
             ProviderIds = { { XtreamVodProvider.ProviderName, stream.StreamId.ToString(CultureInfo.InvariantCulture) } },
         };
 
-        return Task.FromResult(result);
+        return result;
     }
 
     private async Task<ChannelItemResult> GetCategories(CancellationToken cancellationToken)

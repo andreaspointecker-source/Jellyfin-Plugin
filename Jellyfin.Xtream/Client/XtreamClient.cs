@@ -21,6 +21,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Xtream.Client.Models;
+using Jellyfin.Xtream.Service;
 using Newtonsoft.Json;
 
 #pragma warning disable CS1591
@@ -55,9 +56,30 @@ public class XtreamClient(HttpClient client) : IDisposable
 
     private async Task<T> QueryApi<T>(ConnectionInfo connectionInfo, string urlPath, CancellationToken cancellationToken)
     {
-        Uri uri = new Uri(connectionInfo.BaseUrl + urlPath);
-        string jsonContent = await client.GetStringAsync(uri, cancellationToken).ConfigureAwait(false);
-        return JsonConvert.DeserializeObject<T>(jsonContent)!;
+        // Check if connection queue is enabled in configuration
+        var config = Plugin.Instance?.Configuration;
+        bool useConnectionQueue = config?.EnableConnectionQueue ?? false;
+
+        if (useConnectionQueue)
+        {
+            // Use ConnectionManager to enforce single-connection constraint
+            return await ConnectionManager.ExecuteAsync(
+                async () =>
+                {
+                    Uri uri = new Uri(connectionInfo.BaseUrl + urlPath);
+                    string jsonContent = await client.GetStringAsync(uri, cancellationToken).ConfigureAwait(false);
+                    return JsonConvert.DeserializeObject<T>(jsonContent)!;
+                },
+                null,
+                cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            // Direct call without queueing (original behavior)
+            Uri uri = new Uri(connectionInfo.BaseUrl + urlPath);
+            string jsonContent = await client.GetStringAsync(uri, cancellationToken).ConfigureAwait(false);
+            return JsonConvert.DeserializeObject<T>(jsonContent)!;
+        }
     }
 
     public Task<PlayerApi> GetUserAndServerInfoAsync(ConnectionInfo connectionInfo, CancellationToken cancellationToken) =>

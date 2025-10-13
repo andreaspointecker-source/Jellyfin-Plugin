@@ -35,10 +35,11 @@ namespace Jellyfin.Xtream;
 /// The Xtream Codes API channel.
 /// </summary>
 /// <param name="logger">Instance of the <see cref="ILogger"/> interface.</param>
-public class SeriesChannel(ILogger<SeriesChannel> logger) : IChannel, IDisableMediaSourceDisplay
+/// <param name="thumbnailCache">Instance of the <see cref="ThumbnailCacheService"/> class.</param>
+public class SeriesChannel(ILogger<SeriesChannel> logger, ThumbnailCacheService thumbnailCache) : IChannel, IDisableMediaSourceDisplay
 {
     /// <inheritdoc />
-    public string? Name => "Xtream Series";
+    public string? Name => "CandyTv Series";
 
     /// <inheritdoc />
     public string? Description => "Series streamed from the Xtream-compatible server.";
@@ -125,7 +126,7 @@ public class SeriesChannel(ILogger<SeriesChannel> logger) : IChannel, IDisableMe
         };
     }
 
-    private ChannelItemInfo CreateChannelItemInfo(Series series)
+    private async Task<ChannelItemInfo> CreateChannelItemInfo(Series series, CancellationToken cancellationToken)
     {
         ParsedName parsedName = StreamService.ParseName(series.Name);
         return new ChannelItemInfo()
@@ -135,7 +136,7 @@ public class SeriesChannel(ILogger<SeriesChannel> logger) : IChannel, IDisableMe
             // FolderType = ChannelFolderType.Series,
             Genres = GetGenres(series.Genre),
             Id = StreamService.ToGuid(StreamService.SeriesPrefix, series.CategoryId, series.SeriesId, 0).ToString(),
-            ImageUrl = series.Cover,
+            ImageUrl = await thumbnailCache.GetCachedUrlAsync(series.Cover, cancellationToken).ConfigureAwait(false),
             Name = parsedName.Title,
             People = GetPeople(series.Cast),
             Tags = new List<string>(parsedName.Tags),
@@ -156,7 +157,7 @@ public class SeriesChannel(ILogger<SeriesChannel> logger) : IChannel, IDisableMe
         }).ToList();
     }
 
-    private ChannelItemInfo CreateChannelItemInfo(int seriesId, SeriesStreamInfo series, int seasonId)
+    private async Task<ChannelItemInfo> CreateChannelItemInfo(int seriesId, SeriesStreamInfo series, int seasonId, CancellationToken cancellationToken)
     {
         Client.Models.SeriesInfo serie = series.Info;
         string name = $"Season {seasonId}";
@@ -185,7 +186,7 @@ public class SeriesChannel(ILogger<SeriesChannel> logger) : IChannel, IDisableMe
             // FolderType = ChannelFolderType.Season,
             Genres = GetGenres(serie.Genre),
             Id = StreamService.ToGuid(StreamService.SeasonPrefix, serie.CategoryId, seriesId, seasonId).ToString(),
-            ImageUrl = cover,
+            ImageUrl = await thumbnailCache.GetCachedUrlAsync(cover, cancellationToken).ConfigureAwait(false),
             Name = name,
             Overview = overview,
             People = GetPeople(serie.Cast),
@@ -194,7 +195,7 @@ public class SeriesChannel(ILogger<SeriesChannel> logger) : IChannel, IDisableMe
         };
     }
 
-    private ChannelItemInfo CreateChannelItemInfo(SeriesStreamInfo series, Season? season, Episode episode)
+    private async Task<ChannelItemInfo> CreateChannelItemInfo(SeriesStreamInfo series, Season? season, Episode episode, CancellationToken cancellationToken)
     {
         Client.Models.SeriesInfo serie = series.Info;
         ParsedName parsedName = StreamService.ParseName(episode.Title);
@@ -218,7 +219,7 @@ public class SeriesChannel(ILogger<SeriesChannel> logger) : IChannel, IDisableMe
             DateCreated = DateTimeOffset.FromUnixTimeSeconds(episode.Added).DateTime,
             Genres = GetGenres(serie.Genre),
             Id = StreamService.ToGuid(StreamService.EpisodePrefix, 0, 0, episode.EpisodeId).ToString(),
-            ImageUrl = cover,
+            ImageUrl = await thumbnailCache.GetCachedUrlAsync(cover, cancellationToken).ConfigureAwait(false),
             IsLiveStream = false,
             MediaSources = sources,
             MediaType = ChannelMediaType.Video,
@@ -245,7 +246,7 @@ public class SeriesChannel(ILogger<SeriesChannel> logger) : IChannel, IDisableMe
     private async Task<ChannelItemResult> GetSeries(int categoryId, CancellationToken cancellationToken)
     {
         IEnumerable<Series> series = await Plugin.Instance.StreamService.GetSeries(categoryId, cancellationToken).ConfigureAwait(false);
-        List<ChannelItemInfo> items = new(series.Select(CreateChannelItemInfo));
+        List<ChannelItemInfo> items = new(await Task.WhenAll(series.Select(s => CreateChannelItemInfo(s, cancellationToken))).ConfigureAwait(false));
         return new()
         {
             Items = items,
@@ -257,7 +258,7 @@ public class SeriesChannel(ILogger<SeriesChannel> logger) : IChannel, IDisableMe
     {
         IEnumerable<Tuple<SeriesStreamInfo, int>> seasons = await Plugin.Instance.StreamService.GetSeasons(seriesId, cancellationToken).ConfigureAwait(false);
         List<ChannelItemInfo> items = new(
-            seasons.Select((Tuple<SeriesStreamInfo, int> tuple) => CreateChannelItemInfo(seriesId, tuple.Item1, tuple.Item2)));
+            await Task.WhenAll(seasons.Select((Tuple<SeriesStreamInfo, int> tuple) => CreateChannelItemInfo(seriesId, tuple.Item1, tuple.Item2, cancellationToken))).ConfigureAwait(false));
         return new()
         {
             Items = items,
@@ -269,7 +270,7 @@ public class SeriesChannel(ILogger<SeriesChannel> logger) : IChannel, IDisableMe
     {
         IEnumerable<Tuple<SeriesStreamInfo, Season?, Episode>> episodes = await Plugin.Instance.StreamService.GetEpisodes(seriesId, seasonId, cancellationToken).ConfigureAwait(false);
         List<ChannelItemInfo> items = new List<ChannelItemInfo>(
-            episodes.Select((Tuple<SeriesStreamInfo, Season?, Episode> tuple) => CreateChannelItemInfo(tuple.Item1, tuple.Item2, tuple.Item3)));
+            await Task.WhenAll(episodes.Select((Tuple<SeriesStreamInfo, Season?, Episode> tuple) => CreateChannelItemInfo(tuple.Item1, tuple.Item2, tuple.Item3, cancellationToken))).ConfigureAwait(false));
         return new()
         {
             Items = items,

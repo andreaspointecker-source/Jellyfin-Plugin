@@ -14,6 +14,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using MediaBrowser.Model.Plugins;
 
 #pragma warning disable CA2227
@@ -75,8 +76,53 @@ public class PluginConfiguration : BasePluginConfiguration
     public SerializableDictionary<int, HashSet<int>> Series { get; set; } = [];
 
     /// <summary>
-    /// Gets or sets the channel override configuration for Live TV.
+    /// Gets or sets the custom channel lists.
     /// </summary>
-    public SerializableDictionary<int, ChannelOverrides> LiveTvOverrides { get; set; } = [];
+    public Collection<ChannelList> ChannelLists { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets the channel mappings (list entry name -> Xtream stream ID).
+    /// </summary>
+    public SerializableDictionary<string, ChannelMapping> ChannelMappings { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets a value indicating whether connection queueing is enabled.
+    /// </summary>
+    public bool EnableConnectionQueue { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether extended caching is enabled.
+    /// </summary>
+    public bool EnableExtendedCache { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the maintenance window start hour (0-23).
+    /// </summary>
+    public int MaintenanceStartHour { get; set; } = 3;
+
+    /// <summary>
+    /// Gets or sets the maintenance window end hour (0-23).
+    /// </summary>
+    public int MaintenanceEndHour { get; set; } = 6;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether automatic EPG preloading is enabled.
+    /// </summary>
+    public bool EnableEpgPreload { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether automatic metadata updates are enabled.
+    /// </summary>
+    public bool EnableMetadataUpdate { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether thumbnail caching is enabled.
+    /// </summary>
+    public bool EnableThumbnailCache { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the thumbnail cache retention days.
+    /// </summary>
+    public int ThumbnailCacheRetentionDays { get; set; } = 30;
 }
 #pragma warning restore CA2227

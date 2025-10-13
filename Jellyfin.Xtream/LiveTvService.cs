@@ -42,10 +42,11 @@ namespace Jellyfin.Xtream;
 /// <param name="httpClientFactory">Instance of the <see cref="IHttpClientFactory"/> interface.</param>
 /// <param name="logger">Instance of the <see cref="ILogger"/> interface.</param>
 /// <param name="memoryCache">Instance of the <see cref="IMemoryCache"/> interface.</param>
-public class LiveTvService(IServerApplicationHost appHost, IHttpClientFactory httpClientFactory, ILogger<LiveTvService> logger, IMemoryCache memoryCache) : ILiveTvService, ISupportsDirectStreamProvider
+/// <param name="thumbnailCache">Instance of the <see cref="ThumbnailCacheService"/> class.</param>
+public class LiveTvService(IServerApplicationHost appHost, IHttpClientFactory httpClientFactory, ILogger<LiveTvService> logger, IMemoryCache memoryCache, ThumbnailCacheService thumbnailCache) : ILiveTvService, ISupportsDirectStreamProvider
 {
     /// <inheritdoc />
-    public string Name => "Xtream Live";
+    public string Name => "CandyTv Live";
 
     /// <inheritdoc />
     public string HomePageUrl => string.Empty;
@@ -62,7 +63,7 @@ public class LiveTvService(IServerApplicationHost appHost, IHttpClientFactory ht
             {
                 Id = StreamService.ToGuid(StreamService.LiveTvPrefix, channel.StreamId, 0, 0).ToString(),
                 Number = channel.Num.ToString(CultureInfo.InvariantCulture),
-                ImageUrl = channel.StreamIcon,
+                ImageUrl = await thumbnailCache.GetCachedUrlAsync(channel.StreamIcon, cancellationToken).ConfigureAwait(false),
                 Name = parsed.Title,
                 Tags = parsed.Tags,
             });

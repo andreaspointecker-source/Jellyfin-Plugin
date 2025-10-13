@@ -35,12 +35,13 @@ namespace Jellyfin.Xtream;
 /// The Xtream Codes API channel.
 /// </summary>
 /// <param name="logger">Instance of the <see cref="ILogger"/> interface.</param>
-public class CatchupChannel(ILogger<CatchupChannel> logger) : IChannel, IDisableMediaSourceDisplay
+/// <param name="thumbnailCache">Instance of the <see cref="ThumbnailCacheService"/> class.</param>
+public class CatchupChannel(ILogger<CatchupChannel> logger, ThumbnailCacheService thumbnailCache) : IChannel, IDisableMediaSourceDisplay
 {
     private readonly ILogger<CatchupChannel> _logger = logger;
 
     /// <inheritdoc />
-    public string? Name => "Xtream Catch-up";
+    public string? Name => "CandyTv Catch-up";
 
     /// <inheritdoc />
     public string? Description => "Rewatch IPTV streamed from the Xtream-compatible server.";
@@ -127,7 +128,7 @@ public class CatchupChannel(ILogger<CatchupChannel> logger) : IChannel, IDisable
             items.Add(new ChannelItemInfo()
             {
                 Id = StreamService.ToGuid(StreamService.CatchupPrefix, channel.CategoryId ?? 0, channel.StreamId, 0).ToString(),
-                ImageUrl = channel.StreamIcon,
+                ImageUrl = await thumbnailCache.GetCachedUrlAsync(channel.StreamIcon, cancellationToken).ConfigureAwait(false),
                 Name = parsedName.Title,
                 Tags = new List<string>(parsedName.Tags),
                 Type = ChannelItemType.Folder,
@@ -153,6 +154,7 @@ public class CatchupChannel(ILogger<CatchupChannel> logger) : IChannel, IDisable
         ParsedName parsedName = StreamService.ParseName(channel.Name);
 
         List<ChannelItemInfo> items = [];
+        string cachedIcon = await thumbnailCache.GetCachedUrlAsync(channel.StreamIcon, cancellationToken).ConfigureAwait(false) ?? string.Empty;
         for (int i = 0; i <= channel.TvArchiveDuration; i++)
         {
             DateTime channelDay = DateTime.Today.AddDays(-i);
@@ -160,7 +162,7 @@ public class CatchupChannel(ILogger<CatchupChannel> logger) : IChannel, IDisable
             items.Add(new()
             {
                 Id = StreamService.ToGuid(StreamService.CatchupPrefix, channel.CategoryId ?? 0, channel.StreamId, day).ToString(),
-                ImageUrl = channel.StreamIcon,
+                ImageUrl = cachedIcon,
                 Name = channelDay.ToLocalTime().ToString("ddd dd'-'MM'-'yyyy", CultureInfo.InvariantCulture),
                 Tags = new List<string>(parsedName.Tags),
                 Type = ChannelItemType.Folder,

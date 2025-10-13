@@ -15,31 +15,45 @@
 
 using System;
 using System.Collections.Generic;
+using Newtonsoft.Json;
 
 #pragma warning disable CS1591
 namespace Jellyfin.Xtream.Client.Models;
 
 public class UserInfo
 {
+    [JsonProperty("username")]
     public string Username { get; set; } = string.Empty;
 
+    [JsonProperty("password")]
     public string Password { get; set; } = string.Empty;
 
+    [JsonProperty("auth")]
     public int Auth { get; set; }
 
+    [JsonProperty("status")]
     public string Status { get; set; } = string.Empty;
 
+    [JsonProperty("exp_date")]
+    [JsonConverter(typeof(UnixTimestampConverter))]
     public DateTime ExpDate { get; set; }
 
+    [JsonProperty("is_trial")]
+    [JsonConverter(typeof(IntToBoolConverter))]
     public bool IsTrial { get; set; }
 
+    [JsonProperty("active_cons")]
     public int ActiveCons { get; set; }
 
+    [JsonProperty("created_at")]
+    [JsonConverter(typeof(UnixTimestampConverter))]
     public DateTime CreatedAt { get; set; }
 
+    [JsonProperty("max_connections")]
     public int MaxConnections { get; set; }
 
     #pragma warning disable CA2227
+    [JsonProperty("allowed_output_formats")]
     public ICollection<string> AllowedOutputFormats { get; set; } = new List<string>();
     #pragma warning restore CA2227
 }

@@ -13,7 +13,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Mime;
 using System.Threading;
@@ -21,6 +23,8 @@ using System.Threading.Tasks;
 using Jellyfin.Xtream.Api.Models;
 using Jellyfin.Xtream.Client;
 using Jellyfin.Xtream.Client.Models;
+using Jellyfin.Xtream.Configuration;
+using Jellyfin.Xtream.Service;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -183,5 +187,275 @@ public class XtreamController : ControllerBase
         IEnumerable<StreamInfo> streams = await Plugin.Instance.StreamService.GetLiveStreams(cancellationToken).ConfigureAwait(false);
         var channels = streams.Select(CreateChannelResponse).ToList();
         return Ok(channels);
+    }
+
+    /// <summary>
+    /// Parse TXT file content into channel list entries.
+    /// </summary>
+    /// <param name="request">The parse request containing TXT content.</param>
+    /// <returns>List of channel names.</returns>
+    [Authorize(Policy = "RequiresElevation")]
+    [HttpPost("ChannelLists/Parse")]
+    public ActionResult<IReadOnlyCollection<string>> ParseChannelList([FromBody] ParseChannelListRequest request)
+    {
+        var service = new ChannelListService();
+        var entries = service.ParseTxtContent(request.Content);
+        return Ok(entries);
+    }
+
+    /// <summary>
+    /// Find fuzzy matches for a channel name.
+    /// </summary>
+    /// <param name="request">The match request.</param>
+    /// <returns>List of matching streams.</returns>
+    [Authorize(Policy = "RequiresElevation")]
+    [HttpPost("ChannelLists/Match")]
+    public async Task<IActionResult> MatchChannel([FromBody] MatchChannelRequest request)
+    {
+        try
+        {
+            var service = new ChannelListService();
+            IEnumerable<StreamInfo> allStreams = await Plugin.Instance.StreamService.GetLiveStreams(CancellationToken.None).ConfigureAwait(false);
+
+            var matches = service.GetTopMatches(request.ChannelName, allStreams, 10);
+
+            var response = matches.Select(m => new ChannelMatchResponse
+            {
+                StreamId = m.Stream.StreamId,
+                StreamName = m.Stream.Name ?? string.Empty,
+                StreamIcon = m.Stream.StreamIcon,
+                Score = m.Score,
+                IsExact = m.IsExact,
+            }).ToList();
+
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            return Ok(new { error = ex.Message, stackTrace = ex.StackTrace, type = ex.GetType().Name });
+        }
+    }
+
+    /// <summary>
+    /// Get all available live streams for manual selection.
+    /// </summary>
+    /// <returns>All live streams.</returns>
+    [Authorize(Policy = "RequiresElevation")]
+    [HttpGet("ChannelLists/AllStreams")]
+    public async Task<IActionResult> GetAllStreams()
+    {
+        try
+        {
+            IEnumerable<StreamInfo> streams = await Plugin.Instance.StreamService.GetLiveStreams(CancellationToken.None).ConfigureAwait(false);
+
+            var response = streams.Select(s => new ChannelMatchResponse
+            {
+                StreamId = s.StreamId,
+                StreamName = s.Name ?? string.Empty,
+                StreamIcon = s.StreamIcon,
+                Score = 0,
+                IsExact = false,
+            }).OrderBy(s => s.StreamName).ToList();
+
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            return Ok(new { error = ex.Message, stackTrace = ex.StackTrace, type = ex.GetType().Name });
+        }
+    }
+
+    /// <summary>
+    /// Get optimization statistics (connection status, cache hit rate, etc.).
+    /// </summary>
+    /// <returns>Current optimization statistics.</returns>
+    [Authorize(Policy = "RequiresElevation")]
+    [HttpGet("OptimizationStats")]
+    public ActionResult<object> GetOptimizationStats()
+    {
+        return Ok(new
+        {
+            isBusy = ConnectionManager.IsBusy,
+            queuedRequests = ConnectionManager.QueuedRequests,
+            totalRequests = ConnectionManager.TotalRequests,
+            cacheHitRate = CacheService.CacheHitRate,
+            cacheHits = CacheService.CacheHits,
+            cacheMisses = CacheService.CacheMisses,
+            thumbnailCacheHitRate = ThumbnailCacheService.CacheHitRate,
+            thumbnailCachedImages = ThumbnailCacheService.CachedImages,
+            thumbnailCacheRequests = ThumbnailCacheService.CacheRequests,
+        });
+    }
+
+    /// <summary>
+    /// Reset channel mappings and force reload from provider.
+    /// </summary>
+    /// <returns>Success message.</returns>
+    [Authorize(Policy = "RequiresElevation")]
+    [HttpPost("ResetChannelOrder")]
+    public ActionResult<object> ResetChannelOrder()
+    {
+        try
+        {
+            var config = Plugin.Instance.Configuration;
+
+            // Clear channel mappings
+            if (config.ChannelMappings != null)
+            {
+                int count = config.ChannelMappings.Count;
+                config.ChannelMappings.Clear();
+
+                // Save configuration
+                Plugin.Instance.UpdateConfiguration(config);
+
+                return Ok(new { success = true, message = $"Cleared {count} channel mappings. Channels will reload from provider on next refresh." });
+            }
+
+            return Ok(new { success = true, message = "No channel mappings to clear." });
+        }
+        catch (Exception ex)
+        {
+            return Ok(new { success = false, error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Get user and server information from the Xtream provider.
+    /// </summary>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>User and server information.</returns>
+    [Authorize(Policy = "RequiresElevation")]
+    [HttpGet("UserInfo")]
+    public async Task<IActionResult> GetUserInfo(CancellationToken cancellationToken)
+    {
+        try
+        {
+            Plugin plugin = Plugin.Instance;
+            using XtreamClient client = new XtreamClient();
+            var playerApi = await client.GetUserAndServerInfoAsync(plugin.Creds, cancellationToken).ConfigureAwait(false);
+
+            return Ok(new
+            {
+                username = playerApi.UserInfo.Username,
+                status = playerApi.UserInfo.Status,
+                expDate = playerApi.UserInfo.ExpDate,
+                isTrial = playerApi.UserInfo.IsTrial,
+                activeCons = playerApi.UserInfo.ActiveCons,
+                maxConnections = playerApi.UserInfo.MaxConnections,
+                createdAt = playerApi.UserInfo.CreatedAt,
+                serverUrl = playerApi.ServerSnfo.Url,
+                serverTimezone = playerApi.ServerSnfo.Timezone,
+            });
+        }
+        catch (Exception ex)
+        {
+            return Ok(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Get thumbnail cache statistics (file count and total size).
+    /// </summary>
+    /// <returns>Cache statistics.</returns>
+    [Authorize(Policy = "RequiresElevation")]
+    [HttpGet("ThumbnailCacheStats")]
+    public ActionResult<object> GetThumbnailCacheStats()
+    {
+        try
+        {
+            var cacheDir = GetThumbnailCacheDirectory();
+
+            if (!Directory.Exists(cacheDir))
+            {
+                return Ok(new
+                {
+                    fileCount = 0,
+                    totalSizeMB = 0.0,
+                });
+            }
+
+            var files = Directory.GetFiles(cacheDir, "*.*", SearchOption.AllDirectories);
+            var totalBytes = files.Sum(f => new FileInfo(f).Length);
+            var totalSizeMB = totalBytes / 1024.0 / 1024.0;
+
+            return Ok(new
+            {
+                fileCount = files.Length,
+                totalSizeMB = totalSizeMB,
+            });
+        }
+        catch (Exception ex)
+        {
+            return Ok(new
+            {
+                fileCount = 0,
+                totalSizeMB = 0.0,
+                error = ex.Message,
+            });
+        }
+    }
+
+    /// <summary>
+    /// Clear all cached thumbnails.
+    /// </summary>
+    /// <returns>Number of deleted files and freed space.</returns>
+    [Authorize(Policy = "RequiresElevation")]
+    [HttpPost("ClearThumbnailCache")]
+    public ActionResult<object> ClearThumbnailCache()
+    {
+        try
+        {
+            var cacheDir = GetThumbnailCacheDirectory();
+
+            if (!Directory.Exists(cacheDir))
+            {
+                return Ok(new
+                {
+                    deletedFiles = 0,
+                    freedSpaceMB = 0.0,
+                });
+            }
+
+            var files = Directory.GetFiles(cacheDir, "*.*", SearchOption.AllDirectories);
+            var totalBytes = files.Sum(f => new FileInfo(f).Length);
+            var freedSpaceMB = totalBytes / 1024.0 / 1024.0;
+            var deletedCount = files.Length;
+
+            foreach (var file in files)
+            {
+                System.IO.File.Delete(file);
+            }
+
+            // Clean up empty subdirectories
+            var dirs = Directory.GetDirectories(cacheDir, "*", SearchOption.AllDirectories);
+            foreach (var dir in dirs.OrderByDescending(d => d.Length))
+            {
+                if (!Directory.EnumerateFileSystemEntries(dir).Any())
+                {
+                    Directory.Delete(dir);
+                }
+            }
+
+            return Ok(new
+            {
+                deletedFiles = deletedCount,
+                freedSpaceMB = freedSpaceMB,
+            });
+        }
+        catch (Exception ex)
+        {
+            return Ok(new
+            {
+                deletedFiles = 0,
+                freedSpaceMB = 0.0,
+                error = ex.Message,
+            });
+        }
+    }
+
+    private static string GetThumbnailCacheDirectory()
+    {
+        var dataPath = Plugin.Instance.DataFolderPath;
+        return Path.Combine(dataPath, "thumbnails");
     }
 }

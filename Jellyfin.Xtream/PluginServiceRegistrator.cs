@@ -14,6 +14,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 using Jellyfin.Xtream.Providers;
+using Jellyfin.Xtream.Service;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Channels;
 using MediaBrowser.Controller.LiveTv;
@@ -34,5 +35,6 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<IChannel, SeriesChannel>();
         serviceCollection.AddSingleton<IChannel, VodChannel>();
         serviceCollection.AddSingleton<IPreRefreshProvider, XtreamVodProvider>();
+        serviceCollection.AddSingleton<ThumbnailCacheService>();
     }
 }

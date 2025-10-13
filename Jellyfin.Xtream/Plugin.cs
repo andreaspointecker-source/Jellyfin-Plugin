@@ -51,7 +51,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     }
 
     /// <inheritdoc />
-    public override string Name => "Jellyfin Xtream";
+    public override string Name => "CandyTv";
 
     /// <inheritdoc />
     public override Guid Id => Guid.Parse("5d774c35-8567-46d3-a950-9bb8227a0c5d");
@@ -108,6 +108,8 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
             CreateStatic("XtreamSeries.js"),
             CreateStatic("XtreamVod.html"),
             CreateStatic("XtreamVod.js"),
+            CreateStatic("XtreamChannelLists.html"),
+            CreateStatic("XtreamChannelLists.js"),
         };
     }
 

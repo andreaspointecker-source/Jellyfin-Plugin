@@ -1,5 +1,5 @@
 const url = (name) =>
-  ApiClient.getUrl("configurationpage", {
+  ApiClient.getUrl("web/ConfigurationPage", {
     name,
   });
 const tab = (name) => '/configurationpage?name=' + name + '.html';
@@ -188,23 +188,27 @@ const filter = (obj, predicate) => Object.keys(obj)
 const tabs = [
   {
     href: tab('XtreamCredentials'),
-    name: 'Credentials'
+    name: 'Login'
   },
   {
     href: tab('XtreamLive'),
-    name: 'Live TV'
-  },
-  {
-    href: tab('XtreamLiveOverrides'),
-    name: 'TV overrides'
+    name: 'Live-TV'
   },
   {
     href: tab('XtreamVod'),
-    name: 'Video On-Demand',
+    name: 'Filme',
   },
   {
     href: tab('XtreamSeries'),
-    name: 'Series',
+    name: 'Serien',
+  },
+  {
+    href: tab('XtreamChannelLists'),
+    name: 'Senderliste',
+  },
+  {
+    href: tab('XtreamLiveOverrides'),
+    name: 'Optimierungen'
   },
 ];
 

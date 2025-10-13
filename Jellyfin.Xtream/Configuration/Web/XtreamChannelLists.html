@@ -1,0 +1,90 @@
+<div id="XtreamChannelListsPage" data-role="page" class="page type-interior pluginConfigurationPage withTabs"
+  data-require="emby-input,emby-button,emby-textarea" data-controller="__plugin/XtreamChannelLists.js">
+  <div data-role="content">
+    <div class="content-primary">
+      <div class="sectionTitleContainer flex align-items-center">
+        <h2 class="sectionTitle">Senderlisten verwalten</h2>
+      </div>
+
+      <div class="inputContainer" style="display: flex; gap: 10px;">
+        <button is="emby-button" type="button" id="btnAddList" class="raised button-submit">
+          <span>+ Neue Liste hinzufügen</span>
+        </button>
+        <button is="emby-button" type="button" id="btnResetChannelOrder" class="raised" style="background: #ff9800;">
+          <span>Kanalliste zurücksetzen</span>
+        </button>
+      </div>
+      <div class="fieldDescription" style="margin-bottom: 20px;">
+        Mit "Zurücksetzen" werden alle Kanalzuordnungen gelöscht und die Kanäle neu vom Provider geladen. Dies behebt Fehler mit doppelten Sendern.
+      </div>
+
+      <div id="channelListsContainer"></div>
+
+      <!-- Modal for adding/editing lists -->
+      <div id="listModal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
+        <div style="background-color: #1c1c1c; margin: 5% auto; padding: 20px; border-radius: 6px; width: 80%; max-width: 800px; max-height: 80vh; overflow-y: auto;">
+          <h3 id="modalTitle">Neue Senderliste</h3>
+
+          <div class="inputContainer">
+            <label class="inputLabel inputLabelUnfocused" for="listName">Listenname</label>
+            <input is="emby-input" type="text" id="listName" />
+          </div>
+
+          <div class="inputContainer">
+            <label class="inputLabel inputLabelUnfocused" for="listContent">Senderliste (ein Sender pro Zeile)</label>
+            <textarea id="listContent" style="width: 100%; min-height: 300px; font-family: monospace; background: #2a2a2a; color: #fff; border: 1px solid #444; border-radius: 4px; padding: 10px;"></textarea>
+            <div class="fieldDescription">Geben Sie jeden Sendernamen in eine neue Zeile ein</div>
+          </div>
+
+          <div style="margin-top: 20px;">
+            <button is="emby-button" type="button" id="btnSaveList" class="raised button-submit">
+              <span>Liste speichern und Sender zuordnen</span>
+            </button>
+            <button is="emby-button" type="button" id="btnCancelModal" class="raised">
+              <span>Abbrechen</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal for matching channels -->
+      <div id="matchModal" style="display: none; position: fixed; z-index: 1001; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); overflow-y: auto;">
+        <div style="background-color: #1c1c1c; margin: 2% auto; padding: 20px; border-radius: 6px; width: 90%; max-width: 1200px;">
+          <h3>Sender zuordnen</h3>
+          <div id="matchProgress" style="margin-bottom: 20px;">
+            <div style="font-size: 16px; margin-bottom: 10px;">
+              Fortschritt: <span id="matchProgressText">0 / 0</span>
+            </div>
+            <div style="width: 100%; background: #2a2a2a; height: 20px; border-radius: 10px; overflow: hidden;">
+              <div id="matchProgressBar" style="width: 0%; height: 100%; background: #00a4dc; transition: width 0.3s;"></div>
+            </div>
+          </div>
+
+          <div id="currentMatch" style="display: none;">
+            <h4>Sender: <span id="currentChannelName" style="color: #00a4dc;"></span></h4>
+
+            <div id="matchResults" style="margin: 20px 0;"></div>
+
+            <div style="margin-top: 20px;">
+              <button is="emby-button" type="button" id="btnShowAllStreams" class="raised">
+                <span>Alle Sender anzeigen</span>
+              </button>
+              <button is="emby-button" type="button" id="btnSkipChannel" class="raised">
+                <span>Überspringen</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="matchComplete" style="display: none; text-align: center; padding: 40px;">
+            <h3 style="color: #00a4dc;">✓ Zuordnung abgeschlossen</h3>
+            <p>Alle Sender wurden zugeordnet.</p>
+            <button is="emby-button" type="button" id="btnCloseMatchModal" class="raised button-submit">
+              <span>Fertig</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>

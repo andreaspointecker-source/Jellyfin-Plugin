@@ -13,12 +13,16 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+using Newtonsoft.Json;
+
 #pragma warning disable CS1591
 namespace Jellyfin.Xtream.Client.Models;
 
 public class PlayerApi
 {
+    [JsonProperty("user_info")]
     public UserInfo UserInfo { get; set; } = new UserInfo();
 
+    [JsonProperty("server_info")]
     public ServerInfo ServerSnfo { get; set; } = new ServerInfo();
 }
