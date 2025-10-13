@@ -6,7 +6,7 @@
     "overview": "Stream content from an Xtream-compatible server.",
     "owner": "Candy",
     "category": "Live TV",
-    "imageUrl": "https://raw.githubusercontent.com/andreaspointecker-source/Jellyfin-Plugin/master/logo.png",
+    "imageUrl": "https://raw.githubusercontent.com/andreaspointecker-source/Jellyfin-Plugin/master/Jellyfin.Xtream/icon/CandyTV.png",
     "versions": [
       {
         "version": "0.0.2",
