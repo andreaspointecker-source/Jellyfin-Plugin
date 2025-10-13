@@ -152,12 +152,12 @@
   <Registry>https://hub.docker.com/r/jellyfin/jellyfin/</Registry>
   <Network>bridge</Network>
   <Privileged>false</Privileged>
-  <Support>https://github.com/Kevinjil/Jellyfin.Xtream</Support>
-  <Project>https://github.com/Kevinjil/Jellyfin.Xtream</Project>
+  <Support>https://github.com/andreaspointecker-source/Jellyfin-Plugin</Support>
+  <Project>https://github.com/andreaspointecker-source/Jellyfin-Plugin</Project>
   <Overview>Jellyfin mit CandyTv IPTV-Plugin</Overview>
   <Category>MediaServer:Video</Category>
   <WebUI>http://[IP]:[PORT:8096]</WebUI>
-  <Icon>https://raw.githubusercontent.com/Kevinjil/Jellyfin.Xtream/master/icon.png</Icon>
+  <Icon>https://raw.githubusercontent.com/andreaspointecker-source/Jellyfin-Plugin/master/icon.png</Icon>
 
   <Config Name="WebUI" Target="8096" Default="8096" Mode="tcp" Description="Web-UI Port" Type="Port" Display="always" Required="true" Mask="false"/>
   <Config Name="AppData" Target="/config" Default="/mnt/user/appdata/jellyfin" Mode="rw" Description="Config Directory" Type="Path" Display="advanced" Required="true" Mask="false"/>
@@ -485,10 +485,10 @@ PATCH: Bugfixes (backward-compatible)
 
 ## Kontakt & Support
 
-- **Repository**: https://github.com/Kevinjil/Jellyfin.Xtream
-- **Issues**: https://github.com/Kevinjil/Jellyfin.Xtream/issues
-- **Discussions**: https://github.com/Kevinjil/Jellyfin.Xtream/discussions
-- **Original-Maintainer**: Kevin Jilissen
+- **Repository**: https://github.com/andreaspointecker-source/Jellyfin-Plugin
+- **Issues**: https://github.com/andreaspointecker-source/Jellyfin-Plugin/issues
+- **Discussions**: https://github.com/andreaspointecker-source/Jellyfin-Plugin/discussions
+- **Owner**: Candy
 
 ---
 

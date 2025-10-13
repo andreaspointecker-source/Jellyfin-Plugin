@@ -1,511 +1,827 @@
-# CandyTv (Jellyfin.Xtream) - Technical Specification
+# CandyTv (Jellyfin.Xtream) - Technische Spezifikation
 
-## Project Overview
+## Projektübersicht
 
-**CandyTv** (formerly Jellyfin.Xtream) is a comprehensive Jellyfin plugin that integrates Xtream-compatible API content into the Jellyfin media server. It enables streaming of Live IPTV channels with EPG support, Video On-Demand content, TV Series, and TV catch-up functionality.
+**CandyTv** (ehemals Jellyfin.Xtream) ist ein umfassendes Jellyfin-Plugin für die Integration von Xtream-kompatiblen IPTV-APIs. Es ermöglicht Live-TV-Streaming mit EPG, Video-On-Demand, TV-Serien und TV-Aufzeichnungen.
 
-### Project Metadata
+### Projekt-Metadaten
 
-- **Project Name**: CandyTv
-- **Assembly Name**: CandyTv
-- **Plugin GUID**: `5d774c35-8567-46d3-a950-9bb8227a0c5d`
-- **Version**: 0.0.2
-- **License**: GPL-3.0
+- **Projektname**: CandyTv
+- **Assembly-Name**: CandyTv
+- **Plugin-GUID**: `5d774c35-8567-46d3-a950-9bb8227a0c5d`
+- **Aktuelle Version**: 0.0.2
+- **Lizenz**: GPL-3.0
 - **Target Framework**: .NET 8.0
 - **Jellyfin Target ABI**: 10.10.7.0
-- **Category**: Live TV
-- **Repository**: https://github.com/Kevinjil/Jellyfin.Xtream
+- **Kategorie**: Live TV
+- **Root-Verzeichnis**: `C:\Users\Anwender\Programme\Jellyfin.Xtream-original\Jellyfin.Xtream`
+- **Repository**: https://github.com/andreaspointecker-source/Jellyfin-Plugin
 
 ---
 
-## Architecture Overview
+## Architektur-Übersicht
 
-### System Design
+### System-Design
 
-The plugin follows a layered architecture pattern:
+Das Plugin folgt einem mehrschichtigen Architekturmuster:
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│           Jellyfin Server Integration               │
+│         Jellyfin Server Integration                 │
 │  (ILiveTvService, IChannel, ISupportsDirectStream) │
 └────────────────┬────────────────────────────────────┘
                  │
 ┌────────────────┴────────────────────────────────────┐
-│              Channel Layer                          │
+│              Channel-Schicht                        │
 │  LiveTvService | VodChannel | SeriesChannel |      │
 │  CatchupChannel                                     │
 └────────────────┬────────────────────────────────────┘
                  │
 ┌────────────────┴────────────────────────────────────┐
-│              Service Layer                          │
+│              Service-Schicht                        │
 │  StreamService | TaskService | CacheService |       │
 │  ConnectionManager | ChannelListService |           │
 │  ThumbnailCacheService                              │
 └────────────────┬────────────────────────────────────┘
                  │
 ┌────────────────┴────────────────────────────────────┐
-│              Client Layer                           │
+│              Client-Schicht                         │
 │  XtreamClient | ConnectionInfo | JSON Converters    │
 └────────────────┬────────────────────────────────────┘
                  │
 ┌────────────────┴────────────────────────────────────┐
-│         Xtream-Compatible API Server                │
+│         Xtream-Kompatibler API-Server               │
 └─────────────────────────────────────────────────────┘
 ```
 
+### Komponenten-Hierarchie
+
+```
+Plugin.cs (Einstiegspunkt)
+    ├── StreamService (Core-Logic)
+    ├── TaskService (Scheduled-Tasks)
+    │
+    ├── LiveTvService (ILiveTvService)
+    │   └── EPG-Cache (IMemoryCache, 10min TTL)
+    │
+    ├── VodChannel (IChannel)
+    ├── SeriesChannel (IChannel)
+    └── CatchupChannel (IChannel)
+
+StreamService
+    ├── XtreamClient (HTTP-Client)
+    ├── ConnectionManager (Queue)
+    ├── CacheService (Extended-Cache)
+    └── ThumbnailCacheService (Disk-Cache)
+
+XtreamClient
+    └── JSON-Converters
+        ├── Base64Converter
+        ├── IntToBoolConverter
+        ├── SingularToListConverter
+        └── UnixTimestampConverter
+```
+
 ---
 
-## Core Components
+## Kern-Komponenten
 
-### 1. Plugin Entry Point
+### 1. Plugin-Einstiegspunkt
 
-**File**: `Plugin.cs`
+**Datei**: `Plugin.cs`
+**Standort**: `C:\Users\Anwender\Programme\Jellyfin.Xtream-original\Jellyfin.Xtream\Plugin.cs`
 
-The main plugin class that inherits from `BasePlugin<PluginConfiguration>` and implements `IHasWebPages`.
+Die Haupt-Plugin-Klasse, erbt von `BasePlugin<PluginConfiguration>` und implementiert `IHasWebPages`.
 
-**Key Responsibilities**:
-- Plugin lifecycle management
-- Configuration management
-- Service initialization (StreamService, TaskService)
-- Web UI page registration
-- Auto-refresh of TV Guide and Channels on configuration changes
+**Wichtige Eigenschaften**:
+```csharp
+public override string Name => "CandyTv";                                    // Plugin.cs:54
+public override Guid Id => Guid.Parse("5d774c35-8567-46d3-a950-9bb8227a0c5d"); // Plugin.cs:57
+public ConnectionInfo Creds => new(Configuration.BaseUrl, ...);              // Plugin.cs:62
+public string DataVersion => Assembly.GetVersion() + Config.GetHashCode();   // Plugin.cs:67
+```
 
-**Important Properties**:
-- `Name`: "CandyTv"
-- `Id`: `5d774c35-8567-46d3-a950-9bb8227a0c5d`
-- `Creds`: Connection credentials from configuration
-- `DataVersion`: Used for cache invalidation on updates
+**Hauptverantwortlichkeiten**:
+- Plugin-Lebenszyklus-Verwaltung
+- Konfigurations-Management
+- Service-Initialisierung (StreamService, TaskService)
+- Web-UI-Seiten-Registrierung
+- Automatische TV-Guide/Kanal-Aktualisierung bei Config-Änderungen
 
-**Key Methods**:
-- `UpdateConfiguration()`: Triggers automatic refresh of TV guide and channels
-- `GetPages()`: Returns embedded web resources for admin UI
+**Wichtige Methoden**:
+- `UpdateConfiguration()`: Löst automatische Aktualisierung aus (Plugin.cs:117)
+- `GetPages()`: Gibt eingebettete Web-Ressourcen zurück (Plugin.cs:95)
 
 ---
 
-### 2. Channel Implementations
+### 2. Channel-Implementierungen
 
 #### 2.1 LiveTvService
 
-**File**: `LiveTvService.cs`
+**Datei**: `LiveTvService.cs`
+**Standort**: `C:\Users\Anwender\Programme\Jellyfin.Xtream-original\Jellyfin.Xtream\LiveTvService.cs:46`
 
-**Purpose**: Implements `ILiveTvService` and `ISupportsDirectStreamProvider` for live IPTV streaming.
+Implementiert `ILiveTvService` und `ISupportsDirectStreamProvider` für Live-IPTV.
 
-**Key Features**:
-- Live TV channel enumeration
-- EPG (Electronic Program Guide) data retrieval with 10-minute memory caching
-- Direct stream provider support with buffering via Restream
-- Channel metadata (number, name, image, tags)
+**Hauptfunktionen**:
+- Live-TV-Kanal-Auflistung
+- EPG-Datenabruf mit 10-minütigem Memory-Cache
+- Direct-Stream-Provider mit Restream-Pufferung
+- Kanal-Metadaten (Nummer, Name, Bild, Tags)
 
-**Key Methods**:
-- `GetChannelsAsync()`: Returns all configured live channels
-- `GetProgramsAsync()`: Returns EPG programs for a date range (with 10-min cache)
-- `GetChannelStreamWithDirectStreamProvider()`: Provides direct stream with Restream buffering
+**Wichtige Methoden**:
+```csharp
+// Alle konfigurierten Live-Kanäle abrufen
+public async Task<IEnumerable<ChannelInfo>> GetChannelsAsync(...)           // LiveTvService.cs:55
 
-**Data Flow**:
+// EPG-Programme für Datumsbereich (mit 10-Min-Cache)
+public async Task<IEnumerable<ProgramInfo>> GetProgramsAsync(...)           // LiveTvService.cs:157
+
+// Direct-Stream mit Restream-Pufferung
+public async Task<ILiveStream> GetChannelStreamWithDirectStreamProvider(...) // LiveTvService.cs:208
 ```
-Configuration → StreamService → XtreamClient → Xtream API
-                                            ↓
-                                   Memory Cache (10min)
-                                            ↓
-                              Jellyfin LiveTV System
+
+**EPG-Caching-Logik** (LiveTvService.cs:166-194):
+```csharp
+string key = $"xtream-epg-{channelId}";
+if (memoryCache.TryGetValue(key, out ICollection<ProgramInfo>? cached))
+{
+    return cached; // Cache-Hit
+}
+
+// Cache-Miss: Von API abrufen
+var epg = await client.GetEpgInfoAsync(creds, streamId, ct);
+memoryCache.Set(key, epg, DateTimeOffset.Now.AddMinutes(10)); // 10min TTL
 ```
+
+**Datenfluss**:
+```
+User-Request
+    → LiveTvService.GetChannelsAsync()
+    → StreamService.GetLiveStreamsWithOverrides()
+    → PluginConfiguration (Filter nach Kategorien)
+    → ChannelMappings (Custom-Ordering anwenden)
+    → XtreamClient.GetLiveStreamsAsync()
+    → ConnectionManager (optional)
+    → Xtream API
+    → ThumbnailCache
+    → Jellyfin
+```
+
+---
 
 #### 2.2 VodChannel
 
-**File**: `VodChannel.cs`
+**Datei**: `VodChannel.cs`
+**Standort**: `C:\Users\Anwender\Programme\Jellyfin.Xtream-original\Jellyfin.Xtream\VodChannel.cs:39`
 
-**Purpose**: Implements `IChannel` for Video On-Demand content.
+Implementiert `IChannel` für Video-On-Demand-Inhalte.
 
-**Key Features**:
-- Category-based organization
-- VOD metadata (title, cover art, creation date, tags)
-- Stream source info generation
-- Provider ID support for metadata providers
-
-**Structure**:
+**Struktur**:
 ```
-Root → Categories → VOD Streams
+Root → Kategorien → VOD-Streams
 ```
 
-**Key Methods**:
-- `GetChannelItems()`: Returns categories or streams based on folder ID
-- `IsEnabledFor()`: Checks if VOD is visible per user
+**Hauptfunktionen**:
+- Kategoriebasierte Organisation
+- VOD-Metadaten (Titel, Cover-Art, Erstellungsdatum, Tags)
+- Stream-Quellen-Info-Generierung
+- Provider-ID-Unterstützung für Metadaten-Provider
+
+**Wichtige Methoden**:
+```csharp
+// Kategorien oder Streams basierend auf Folder-ID
+public async Task<ChannelItemResult> GetChannelItems(...)  // VodChannel.cs:90
+
+// VOD-Kanal-Sichtbarkeit pro User
+public bool IsEnabledFor(string userId)                    // VodChannel.cs:174
+```
+
+**Media-Source-Generierung** (VodChannel.cs:123):
+```csharp
+List<MediaSourceInfo> sources = [
+    Plugin.Instance.StreamService.GetMediaSourceInfo(
+        StreamType.Vod,
+        stream.StreamId,
+        stream.ContainerExtension)
+];
+```
+
+---
 
 #### 2.3 SeriesChannel
 
-**File**: `SeriesChannel.cs`
+**Datei**: `SeriesChannel.cs`
+**Standort**: `C:\Users\Anwender\Programme\Jellyfin.Xtream-original\Jellyfin.Xtream\SeriesChannel.cs:39`
 
-**Purpose**: Implements `IChannel` for TV Series content.
+Implementiert `IChannel` für TV-Serien-Inhalte.
 
-**Key Features**:
-- Hierarchical structure: Categories → Series → Seasons → Episodes
-- Metadata: ratings, genres, cast, air dates, overviews
-- Episode video/audio codec information
-- Season and episode cover art
-
-**Structure**:
+**Hierarchische Struktur**:
 ```
-Root → Series Categories → Series → Seasons → Episodes
+Root → Serien-Kategorien → Serien → Staffeln → Episoden
 ```
 
-**GUID Prefixes**:
+**GUID-Präfixe** (definiert in StreamService.cs:51-68):
 - `SeriesCategoryPrefix`: 0x5d774c37
 - `SeriesPrefix`: 0x5d774c38
 - `SeasonPrefix`: 0x5d774c39
 - `EpisodePrefix`: 0x5d774c3a
 
-#### 2.4 CatchupChannel
+**Hauptfunktionen**:
+- Hierarchie: Kategorien → Serien → Staffeln → Episoden
+- Metadaten: Bewertungen, Genres, Besetzung, Ausstrahlungsdaten
+- Episoden-Video/Audio-Codec-Informationen
+- Staffel- und Episoden-Cover-Art
 
-**File**: `CatchupChannel.cs`
+**Navigations-Logic** (SeriesChannel.cs:91):
+```csharp
+if (string.IsNullOrEmpty(query.FolderId))
+    return await GetCategories(...);                    // Root-Ebene
 
-**Purpose**: Implements `IChannel` for TV catch-up (time-shifted viewing).
+Guid guid = Guid.Parse(query.FolderId);
+StreamService.FromGuid(guid, out int prefix, ...);
 
-**Key Features**:
-- EPG-based catch-up with configurable archive duration
-- Day-by-day browsing interface
-- Fallback to full-day catch-up if no EPG data available
-- Automatic date-based cache invalidation
+if (prefix == StreamService.SeriesCategoryPrefix)
+    return await GetSeries(categoryId, ...);            // Kategorie-Ebene
 
-**Structure**:
+if (prefix == StreamService.SeriesPrefix)
+    return await GetSeasons(seriesId, ...);             // Serien-Ebene
+
+if (prefix == StreamService.SeasonPrefix)
+    return await GetEpisodes(seriesId, seasonId, ...);  // Staffel-Ebene
 ```
-Root → Channels (with catch-up) → Days → EPG Programs
-```
-
-**Data Version**: Includes current date to force daily refresh
 
 ---
 
-### 3. Service Layer
+#### 2.4 CatchupChannel
+
+**Datei**: `CatchupChannel.cs`
+**Standort**: `C:\Users\Anwender\Programme\Jellyfin.Xtream-original\Jellyfin.Xtream\CatchupChannel.cs:39`
+
+Implementiert `IChannel` für TV-Aufzeichnungen (zeitversetztes Ansehen).
+
+**Struktur**:
+```
+Root → Kanäle (mit Aufzeichnung) → Tage → EPG-Programme
+```
+
+**Hauptfunktionen**:
+- EPG-basierte Aufzeichnung mit konfigurierbarer Archiv-Dauer
+- Tag-für-Tag-Browsing-Interface
+- Fallback auf ganztägige Aufzeichnung wenn keine EPG-Daten verfügbar
+- Automatische datumsbasierte Cache-Invalidierung
+
+**DataVersion** (CatchupChannel.cs:50):
+```csharp
+// Enthält aktuelles Datum für tägliche Cache-Invalidierung
+public string DataVersion => Plugin.Instance.DataVersion + DateTime.Today.ToShortDateString();
+```
+
+**Timeshift-URL-Generierung** (via StreamService.cs:418):
+```csharp
+string uri = $"{baseUrl}/streaming/timeshift.php?" +
+    $"username={username}&password={password}&" +
+    $"stream={streamId}&start={YYYY-MM-DD:HH-mm}&duration={minutes}";
+```
+
+---
+
+### 3. Service-Schicht
 
 #### 3.1 StreamService
 
-**File**: `Service/StreamService.cs`
+**Datei**: `Service/StreamService.cs`
+**Standort**: `C:\Users\Anwender\Programme\Jellyfin.Xtream-original\Jellyfin.Xtream\Service\StreamService.cs:38`
 
-**Purpose**: Central service for managing streams, categories, and media source info.
+Zentraler Service für die Verwaltung von Streams, Kategorien und Media-Source-Informationen.
 
-**GUID Encoding System**:
+**GUID-Kodierungs-System**:
 
-The plugin uses a unique GUID encoding system to identify different content types and hierarchy levels. Each GUID encodes four 32-bit integers:
+Das Plugin verwendet ein einzigartiges GUID-System zur Identifizierung verschiedener Inhaltstypen. Jede GUID kodiert vier 32-Bit-Integers:
 
-| Prefix Constant | Hex Value | Purpose |
-|----------------|-----------|---------|
-| `VodCategoryPrefix` | 0x5d774c35 | VOD category folders |
-| `StreamPrefix` | 0x5d774c36 | Stream items |
-| `SeriesCategoryPrefix` | 0x5d774c37 | Series category folders |
-| `SeriesPrefix` | 0x5d774c38 | Series folders |
-| `SeasonPrefix` | 0x5d774c39 | Season folders |
-| `EpisodePrefix` | 0x5d774c3a | Episode items |
-| `CatchupPrefix` | 0x5d774c3b | Catch-up channel folders |
-| `CatchupStreamPrefix` | 0x5d774c3c | Catch-up stream items |
-| `MediaSourcePrefix` | 0x5d774c3d | Media source identification |
-| `LiveTvPrefix` | 0x5d774c3e | Live TV channels |
-| `EpgPrefix` | 0x5d774c3f | EPG program entries |
+```csharp
+// GUID-Struktur: [Prefix][ID1][ID2][ID3]
+// Beispiel: [LiveTvPrefix][ChannelID][0][0]
+```
 
-**Key Methods**:
-- `ToGuid(i0, i1, i2, i3)`: Encodes four integers into a GUID
-- `FromGuid(guid, out i0, out i1, out i2, out i3)`: Decodes GUID back to integers
-- `ParseName(name)`: Extracts tags from stream names (e.g., `[HD]`, `|4K|`)
-- `GetLiveStreams()`: Returns configured live channels
-- `GetLiveStreamsWithOverrides()`: Returns channels with custom ordering applied
-- `GetMediaSourceInfo()`: Generates MediaSourceInfo with stream URLs
+**GUID-Präfixe** (StreamService.cs:40-93):
 
-**Tag Parsing**:
-Supports multiple tag formats:
-- `[TAG]` - Square brackets
-- `|TAG|` - Pipe delimiters
-- Unicode Block Elements (U+2580 - U+259F) as separators
+| Präfix-Konstante | Hex-Wert | Zweck | Verwendung |
+|-----------------|----------|-------|------------|
+| `VodCategoryPrefix` | 0x5d774c35 | VOD-Kategorie-Ordner | VodChannel Root |
+| `StreamPrefix` | 0x5d774c36 | Stream-Items | VOD-Streams |
+| `SeriesCategoryPrefix` | 0x5d774c37 | Serien-Kategorie-Ordner | SeriesChannel Root |
+| `SeriesPrefix` | 0x5d774c38 | Serien-Ordner | Serien |
+| `SeasonPrefix` | 0x5d774c39 | Staffel-Ordner | Staffeln |
+| `EpisodePrefix` | 0x5d774c3a | Episoden-Items | Episoden |
+| `CatchupPrefix` | 0x5d774c3b | Aufzeichnungs-Kanal-Ordner | Catchup-Channels |
+| `CatchupStreamPrefix` | 0x5d774c3c | Aufzeichnungs-Stream-Items | Catchup-Streams |
+| `MediaSourcePrefix` | 0x5d774c3d | Media-Source-Identifikation | Stream-URLs |
+| `LiveTvPrefix` | 0x5d774c3e | Live-TV-Kanäle | Live-Channels |
+| `EpgPrefix` | 0x5d774c3f | EPG-Programm-Einträge | EPG-Items |
 
-**Channel List Override Logic**:
+**Wichtige Methoden**:
+
+```csharp
+// Vier Integers in GUID kodieren
+public static Guid ToGuid(int i0, int i1, int i2, int i3)                    // StreamService.cs:339
+
+// GUID zurück in Integers dekodieren
+public static void FromGuid(Guid id, out int i0, out int i1, ...)            // StreamService.cs:357
+
+// Tags aus Stream-Namen extrahieren (z.B. [HD], |4K|)
+public static ParsedName ParseName(string name)                              // StreamService.cs:109
+
+// Konfigurierte Live-Kanäle abrufen
+public async Task<IEnumerable<StreamInfo>> GetLiveStreams(...)               // StreamService.cs:157
+
+// Live-Kanäle mit Custom-Ordering
+public async Task<IEnumerable<StreamInfo>> GetLiveStreamsWithOverrides(...)  // StreamService.cs:171
+
+// Media-Source-Info mit Stream-URLs generieren
+public MediaSourceInfo GetMediaSourceInfo(StreamType type, int id, ...)      // StreamService.cs:389
+```
+
+**Tag-Parsing-Logic** (StreamService.cs:109):
+
+Unterstützt mehrere Tag-Formate:
+- `[TAG]` - Eckige Klammern
+- `|TAG|` - Pipe-Trennzeichen
+- Unicode Block Elements (U+2580 - U+259F) als Trennzeichen
+
+```csharp
+// Beispiel-Parsing
+"Arte HD [HD] |German|"
+    → Title: "Arte HD"
+    → Tags: ["HD", "German"]
+```
+
+**Channel-List-Override-Logic** (StreamService.cs:177):
+
 ```csharp
 if (config.ChannelMappings != null && config.ChannelMappings.Count > 0)
 {
-    // Use custom channel list ordering
-    var sortedMappings = config.ChannelMappings.Values.OrderBy(m => m.Position);
-    // Only return streams that are in the custom channel list
-    return orderedStreams;
+    // Custom-Channel-List-Ordering verwenden
+    var orderedStreams = new List<StreamInfo>();
+    var streamById = streams.GroupBy(s => s.StreamId)
+                           .ToDictionary(g => g.Key, g => g.First());
+
+    var sortedMappings = config.ChannelMappings.Values
+                               .OrderBy(m => m.Position)
+                               .ToList();
+
+    foreach (var mapping in sortedMappings)
+    {
+        if (streamById.TryGetValue(mapping.StreamId, out var stream))
+        {
+            stream.Num = mapping.Position + 1; // Channel-Nummer setzen
+            orderedStreams.Add(stream);
+        }
+    }
+
+    return orderedStreams; // NUR Streams aus Custom-Liste
 }
-// Otherwise return all configured streams
+
+return streams; // Alle konfigurierten Streams
 ```
+
+**Media-Source-URL-Generierung** (StreamService.cs:389):
+
+```csharp
+// Live-TV
+uri = $"{baseUrl}/{username}/{password}/{streamId}";
+
+// VOD
+uri = $"{baseUrl}/movie/{username}/{password}/{streamId}.{ext}";
+
+// Serien
+uri = $"{baseUrl}/series/{username}/{password}/{episodeId}.{ext}";
+
+// Catchup
+uri = $"{baseUrl}/streaming/timeshift.php?" +
+      $"username={username}&password={password}&" +
+      $"stream={streamId}&start={YYYY-MM-DD:HH-mm}&duration={min}";
+```
+
+---
 
 #### 3.2 ConnectionManager
 
-**File**: `Service/ConnectionManager.cs`
+**Datei**: `Service/ConnectionManager.cs`
 
-**Purpose**: Manages connection queuing to Xtream API to enforce single-connection constraint.
+Verwaltet Verbindungs-Warteschlangen zur Xtream-API um Single-Connection-Constraint durchzusetzen.
 
-**Features**:
-- Optional connection queuing (configurable via `EnableConnectionQueue`)
-- Request statistics tracking
-- Prevents overwhelming provider with concurrent requests
+**Funktionen**:
+- Optionale Verbindungs-Warteschlange (konfigurierbar via `EnableConnectionQueue`)
+- Anfrage-Statistik-Tracking
+- Verhindert Überlastung des Providers mit gleichzeitigen Anfragen
 
-**Statistics**:
-- `IsBusy`: Current connection status
-- `QueuedRequests`: Number of pending requests
-- `TotalRequests`: Total requests processed
-
-#### 3.3 CacheService
-
-**File**: `Service/CacheService.cs`
-
-**Purpose**: Provides extended caching capabilities for API responses.
-
-**Features**:
-- Configurable cache retention (via `EnableExtendedCache`)
-- Maintenance window support (configurable hours)
-- Cache hit/miss rate tracking
-
-**Statistics**:
-- `CacheHitRate`: Percentage of cache hits
-- `CacheHits`: Total cache hits
-- `CacheMisses`: Total cache misses
-
-#### 3.4 ThumbnailCacheService
-
-**File**: `Service/ThumbnailCacheService.cs`
-
-**Purpose**: Caches thumbnail images from Xtream provider to local disk.
-
-**Features**:
-- Configurable cache retention (via `ThumbnailCacheRetentionDays`)
-- Disk-based caching in plugin data directory
-- URL-to-local-path mapping
-- Cache statistics (file count, total size)
-
-**Cache Location**: `{plugin_data_path}/thumbnails/`
-
-**Key Methods**:
-- `GetCachedUrlAsync()`: Returns cached local URL or original URL
-- `CacheHitRate`: Cache effectiveness metric
-- `CachedImages`: Number of cached thumbnails
-- `CacheRequests`: Total thumbnail requests
-
-#### 3.5 ChannelListService
-
-**File**: `Service/ChannelListService.cs`
-
-**Purpose**: Handles custom channel list parsing and fuzzy matching.
-
-**Features**:
-- TXT file parsing for channel lists
-- Fuzzy matching using FuzzySharp library
-- Top-N match retrieval
-- Exact match detection
-
-**Key Methods**:
-- `ParseTxtContent()`: Parses newline-delimited channel names
-- `GetTopMatches()`: Returns fuzzy matches with scores
-
-#### 3.6 TaskService
-
-**File**: `Service/TaskService.cs`
-
-**Purpose**: Manages Jellyfin scheduled tasks.
-
-**Key Responsibilities**:
-- Cancel running tasks
-- Queue tasks for execution
-- Trigger TV Guide refresh
-- Trigger Channel refresh
-
-#### 3.7 Restream
-
-**File**: `Service/Restream.cs`
-
-**Purpose**: Provides direct stream buffering for live TV.
-
-**Features**:
-- HTTP stream buffering
-- Consumer count tracking
-- Wrapped buffer streams (`WrappedBufferStream`, `WrappedBufferReadStream`)
-
-**Key Properties**:
-- `TunerHost`: Identifies restream provider
-- `ConsumerCount`: Number of active consumers
-- `MediaSource`: Associated media source info
-
----
-
-### 4. Client Layer
-
-#### 4.1 XtreamClient
-
-**File**: `Client/XtreamClient.cs`
-
-**Purpose**: HTTP client for Xtream API communication.
-
-**Key Features**:
-- User-Agent header: `Jellyfin.Xtream/{version}`
-- JSON deserialization with Newtonsoft.Json
-- Optional connection queue integration
-- CancellationToken support
-
-**API Methods**:
-
-| Method | Xtream Action | Returns |
-|--------|---------------|---------|
-| `GetUserAndServerInfoAsync()` | `player_api.php` | User and server info |
-| `GetLiveStreamsAsync()` | `get_live_streams` | All live streams |
-| `GetLiveStreamsByCategoryAsync()` | `get_live_streams&category_id=` | Live streams in category |
-| `GetLiveCategoryAsync()` | `get_live_categories` | Live TV categories |
-| `GetVodStreamsByCategoryAsync()` | `get_vod_streams&category_id=` | VOD streams in category |
-| `GetVodInfoAsync()` | `get_vod_info&vod_id=` | VOD metadata |
-| `GetVodCategoryAsync()` | `get_vod_categories` | VOD categories |
-| `GetSeriesByCategoryAsync()` | `get_series&category_id=` | Series in category |
-| `GetSeriesStreamsBySeriesAsync()` | `get_series_info&series_id=` | Series seasons/episodes |
-| `GetSeriesCategoryAsync()` | `get_series_categories` | Series categories |
-| `GetEpgInfoAsync()` | `get_simple_data_table&stream_id=` | EPG listings |
-
-**Connection Queue Logic**:
+**Statistiken**:
 ```csharp
-if (config.EnableConnectionQueue)
+public static bool IsBusy { get; }              // Aktueller Verbindungsstatus
+public static int QueuedRequests { get; }       // Anzahl wartender Anfragen
+public static long TotalRequests { get; }       // Gesamt-Anfragen
+```
+
+**Usage-Pattern**:
+```csharp
+if (Plugin.Instance.Configuration.EnableConnectionQueue)
 {
-    return await ConnectionManager.ExecuteAsync(apiCall, null, cancellationToken);
+    return await ConnectionManager.ExecuteAsync(
+        async () => await apiCall(),
+        null,
+        cancellationToken);
 }
 else
 {
-    // Direct call without queueing
-    return await client.GetStringAsync(uri, cancellationToken);
+    return await apiCall(); // Direkter Aufruf
 }
 ```
 
-#### 4.2 ConnectionInfo
+---
 
-**File**: `Client/ConnectionInfo.cs`
+#### 3.3 CacheService
 
-**Purpose**: Encapsulates Xtream API credentials.
+**Datei**: `Service/CacheService.cs`
 
-**Properties**:
-- `BaseUrl`: API endpoint URL (with protocol, without trailing slash)
-- `UserName`: Authentication username
-- `Password`: Authentication password
+Bietet erweiterte Caching-Funktionen für API-Antworten.
 
-#### 4.3 JSON Converters
+**Funktionen**:
+- Konfigurierbare Cache-Aufbewahrung (via `EnableExtendedCache`)
+- Wartungsfenster-Unterstützung (konfigurierbare Stunden)
+- Cache-Hit/Miss-Rate-Tracking
 
-The plugin includes custom JSON converters to handle quirks in Xtream API responses:
+**Statistiken**:
+```csharp
+public static double CacheHitRate { get; }      // Prozentsatz der Cache-Treffer
+public static long CacheHits { get; }           // Gesamt-Cache-Treffer
+public static long CacheMisses { get; }         // Gesamt-Cache-Fehlschläge
+```
 
-| Converter | Purpose | Location |
-|-----------|---------|----------|
-| `Base64Converter` | Decodes Base64-encoded strings | `Client/Base64Converter.cs` |
-| `SingularToListConverter` | Converts single objects to lists | `Client/SingularToListConverter.cs` |
-| `OnlyObjectConverter` | Handles object-only responses | `Client/OnlyObjectConverter.cs` |
-| `IntToBoolConverter` | Converts integers (0/1) to booleans | `Client/IntToBoolConverter.cs` |
-| `UnixTimestampConverter` | Converts Unix timestamps to DateTime | `Client/UnixTimestampConverter.cs` |
+**Wartungsfenster** (PluginConfiguration.cs:99):
+```csharp
+public int MaintenanceStartHour { get; set; } = 3;   // 03:00 Uhr
+public int MaintenanceEndHour { get; set; } = 6;     // 06:00 Uhr
+```
 
 ---
 
-### 5. Data Models
+#### 3.4 ThumbnailCacheService
 
-#### 5.1 Client Models
+**Datei**: `Service/ThumbnailCacheService.cs`
+
+Cached Thumbnail-Bilder vom Xtream-Provider auf lokale Festplatte.
+
+**Funktionen**:
+- Konfigurierbare Cache-Aufbewahrung (via `ThumbnailCacheRetentionDays`)
+- Festplattenbasiertes Caching im Plugin-Daten-Verzeichnis
+- URL-zu-lokaler-Pfad-Zuordnung
+- Cache-Statistiken (Dateianzahl, Gesamtgröße)
+
+**Cache-Location**:
+```
+{plugin_data_path}/thumbnails/
+```
+
+**Wichtige Methoden**:
+```csharp
+// Gibt gecachte lokale URL oder Original-URL zurück
+public async Task<string?> GetCachedUrlAsync(string? url, ...)
+
+// Cache-Statistiken
+public static double CacheHitRate { get; }
+public static int CachedImages { get; }
+public static long CacheRequests { get; }
+```
+
+**Retention-Policy** (PluginConfiguration.cs:125):
+```csharp
+public int ThumbnailCacheRetentionDays { get; set; } = 30; // Standard: 30 Tage
+```
+
+---
+
+#### 3.5 ChannelListService
+
+**Datei**: `Service/ChannelListService.cs`
+
+Behandelt benutzerdefiniertes Kanallisten-Parsing und Fuzzy-Matching.
+
+**Funktionen**:
+- TXT-Datei-Parsing für Kanallisten (ein Kanal pro Zeile)
+- Fuzzy-Matching mit FuzzySharp-Bibliothek
+- Top-N-Match-Abruf
+- Exakt-Match-Erkennung
+
+**Wichtige Methoden**:
+```csharp
+// Parst TXT-Content (newline-delimited)
+public IReadOnlyCollection<string> ParseTxtContent(string content)
+
+// Gibt Fuzzy-Matches mit Scores zurück
+public IEnumerable<MatchResult> GetTopMatches(string channelName,
+                                              IEnumerable<StreamInfo> streams,
+                                              int topN)
+```
+
+**Fuzzy-Matching-Scores**:
+- Score > 90: Sehr gute Übereinstimmung
+- Score 70-90: Gute Übereinstimmung
+- Score < 70: Schlechte Übereinstimmung
+
+---
+
+#### 3.6 TaskService
+
+**Datei**: `Service/TaskService.cs`
+
+Verwaltet Jellyfin-geplante Aufgaben.
+
+**Hauptverantwortlichkeiten**:
+- Laufende Aufgaben abbrechen
+- Aufgaben zur Ausführung einreihen
+- TV-Guide-Aktualisierung auslösen
+- Kanal-Aktualisierung auslösen
+
+**Usage** (Plugin.cs:124):
+```csharp
+// Force TV-Guide-Refresh bei Config-Update
+TaskService.CancelIfRunningAndQueue(
+    "Jellyfin.LiveTv",
+    "Jellyfin.LiveTv.Guide.RefreshGuideScheduledTask");
+
+// Force Channel-Refresh bei Config-Update
+TaskService.CancelIfRunningAndQueue(
+    "Jellyfin.LiveTv",
+    "Jellyfin.LiveTv.Channels.RefreshChannelsScheduledTask");
+```
+
+---
+
+#### 3.7 Restream
+
+**Datei**: `Service/Restream.cs`
+
+Bietet Direct-Stream-Pufferung für Live-TV.
+
+**Funktionen**:
+- HTTP-Stream-Pufferung
+- Consumer-Count-Tracking
+- Wrapped-Buffer-Streams (`WrappedBufferStream`, `WrappedBufferReadStream`)
+
+**Wichtige Eigenschaften**:
+```csharp
+public const string TunerHost = "Jellyfin.Xtream.Restream";
+public int ConsumerCount { get; set; }
+public MediaSourceInfo MediaSource { get; }
+```
+
+**Usage** (LiveTvService.cs:208):
+```csharp
+// Vorhandene Streams wiederverwenden
+ILiveStream? stream = currentLiveStreams.Find(
+    s => s.TunerHostId == Restream.TunerHost &&
+         s.MediaSource.Id == mediaSourceInfo.Id);
+
+if (stream == null)
+{
+    stream = new Restream(appHost, httpClientFactory, logger, mediaSourceInfo);
+    await stream.Open(cancellationToken);
+}
+
+stream.ConsumerCount++;
+return stream;
+```
+
+---
+
+### 4. Client-Schicht
+
+#### 4.1 XtreamClient
+
+**Datei**: `Client/XtreamClient.cs`
+**Standort**: `C:\Users\Anwender\Programme\Jellyfin.Xtream-original\Jellyfin.Xtream\Client\XtreamClient.cs:37`
+
+HTTP-Client für Xtream-API-Kommunikation.
+
+**Hauptfunktionen**:
+- User-Agent-Header: `Jellyfin.Xtream/{version}`
+- JSON-Deserialisierung mit Newtonsoft.Json
+- Optionale Verbindungs-Warteschlangen-Integration
+- CancellationToken-Unterstützung
+
+**API-Methoden**:
+
+| Methode | Xtream-Action | Rückgabe | Zeile |
+|---------|---------------|----------|-------|
+| `GetUserAndServerInfoAsync()` | `player_api.php` | User/Server-Info | 85 |
+| `GetLiveStreamsAsync()` | `get_live_streams` | Alle Live-Streams | 115 |
+| `GetLiveStreamsByCategoryAsync()` | `get_live_streams&category_id=` | Streams in Kategorie | 121 |
+| `GetLiveCategoryAsync()` | `get_live_categories` | Live-TV-Kategorien | 139 |
+| `GetVodStreamsByCategoryAsync()` | `get_vod_streams&category_id=` | VOD-Streams | 103 |
+| `GetVodInfoAsync()` | `get_vod_info&vod_id=` | VOD-Metadaten | 109 |
+| `GetVodCategoryAsync()` | `get_vod_categories` | VOD-Kategorien | 133 |
+| `GetSeriesByCategoryAsync()` | `get_series&category_id=` | Serien | 91 |
+| `GetSeriesStreamsBySeriesAsync()` | `get_series_info&series_id=` | Staffeln/Episoden | 97 |
+| `GetSeriesCategoryAsync()` | `get_series_categories` | Serien-Kategorien | 127 |
+| `GetEpgInfoAsync()` | `get_simple_data_table&stream_id=` | EPG-Daten | 145 |
+
+**Connection-Queue-Logic** (XtreamClient.cs:57):
+```csharp
+private async Task<T> QueryApi<T>(ConnectionInfo connectionInfo,
+                                   string urlPath,
+                                   CancellationToken cancellationToken)
+{
+    var config = Plugin.Instance?.Configuration;
+    bool useConnectionQueue = config?.EnableConnectionQueue ?? false;
+
+    if (useConnectionQueue)
+    {
+        return await ConnectionManager.ExecuteAsync(
+            async () =>
+            {
+                Uri uri = new Uri(connectionInfo.BaseUrl + urlPath);
+                string jsonContent = await client.GetStringAsync(uri, cancellationToken);
+                return JsonConvert.DeserializeObject<T>(jsonContent)!;
+            },
+            null,
+            cancellationToken);
+    }
+    else
+    {
+        // Direkter Aufruf ohne Warteschlange
+        Uri uri = new Uri(connectionInfo.BaseUrl + urlPath);
+        string jsonContent = await client.GetStringAsync(uri, cancellationToken);
+        return JsonConvert.DeserializeObject<T>(jsonContent)!;
+    }
+}
+```
+
+---
+
+#### 4.2 ConnectionInfo
+
+**Datei**: `Client/ConnectionInfo.cs`
+
+Kapselt Xtream-API-Zugangsdaten.
+
+**Eigenschaften**:
+```csharp
+public string BaseUrl { get; }      // API-URL (mit Protokoll, ohne trailing slash)
+public string UserName { get; }     // API-Benutzername
+public string Password { get; }     // API-Passwort
+```
+
+**Usage**:
+```csharp
+var creds = new ConnectionInfo(
+    "https://example.com",
+    "username",
+    "password"
+);
+```
+
+---
+
+#### 4.3 JSON-Konverter
+
+Das Plugin enthält benutzerdefinierte JSON-Konverter um Eigenheiten in Xtream-API-Antworten zu behandeln:
+
+| Konverter | Zweck | Standort |
+|-----------|-------|----------|
+| `Base64Converter` | Dekodiert Base64-kodierte Strings | `Client/Base64Converter.cs` |
+| `SingularToListConverter` | Konvertiert einzelne Objekte zu Listen | `Client/SingularToListConverter.cs` |
+| `OnlyObjectConverter` | Behandelt nur-Objekt-Antworten | `Client/OnlyObjectConverter.cs` |
+| `IntToBoolConverter` | Konvertiert Integers (0/1) zu Booleans | `Client/IntToBoolConverter.cs` |
+| `UnixTimestampConverter` | Konvertiert Unix-Timestamps zu DateTime | `Client/UnixTimestampConverter.cs` |
+
+**Beispiel-Usage**:
+```csharp
+[JsonProperty("tv_archive")]
+[JsonConverter(typeof(IntToBoolConverter))]
+public bool TvArchive { get; set; }  // API: 0 oder 1 → bool
+
+[JsonProperty("added")]
+[JsonConverter(typeof(UnixTimestampConverter))]
+public DateTime Added { get; set; }  // API: Unix-Timestamp → DateTime
+```
+
+---
+
+### 5. Datenmodelle
+
+#### 5.1 Client-Modelle
 
 **Location**: `Client/Models/`
 
-**Core Models**:
+**Kern-Modelle**:
 
-| Model | Purpose | Key Properties |
-|-------|---------|----------------|
-| `PlayerApi` | User and server info | `UserInfo`, `ServerInfo` |
-| `UserInfo` | User account details | `Username`, `Status`, `ExpDate`, `MaxConnections` |
-| `ServerInfo` | Server details | `Url`, `Timezone` |
-| `Category` | Content category | `CategoryId`, `CategoryName` |
-| `StreamInfo` | Live TV or VOD stream | `StreamId`, `Name`, `StreamIcon`, `Num`, `CategoryId`, `TvArchive`, `TvArchiveDuration`, `ContainerExtension` |
-| `Series` | TV series metadata | `SeriesId`, `Name`, `Cover`, `Genre`, `Cast`, `Rating5Based`, `CategoryId` |
-| `SeriesStreamInfo` | Series with episodes | `Info`, `Seasons`, `Episodes` |
-| `SeriesInfo` | Series metadata | `Name`, `Cover`, `Genre`, `Cast`, `CategoryId` |
-| `Season` | Season metadata | `SeasonId`, `Name`, `Cover`, `AirDate`, `Overview` |
-| `Episode` | Episode metadata | `EpisodeId`, `Title`, `ContainerExtension`, `Added`, `Info` |
-| `EpisodeInfo` | Episode details | `Plot`, `MovieImage`, `Video`, `Audio` |
-| `VideoInfo` | Video codec info | `CodecName`, `Width`, `Height`, `AspectRatio`, `BitDepth` |
-| `AudioInfo` | Audio codec info | `CodecName`, `Bitrate`, `Channels`, `SampleRate` |
-| `EpgListings` | EPG data | `Listings` (list of `EpgInfo`) |
-| `EpgInfo` | EPG program entry | `Id`, `Title`, `Description`, `Start`, `End` |
-| `VodStreamInfo` | VOD with metadata | `Info`, `MovieData` |
-| `VodInfo` | VOD metadata | `TmdbId`, `Name`, `Plot`, `Cast`, `Rating` |
-
-#### 5.2 Configuration Models
-
-**Location**: `Configuration/`
-
-| Model | Purpose | File |
-|-------|---------|------|
-| `PluginConfiguration` | Main plugin config | `PluginConfiguration.cs` |
-| `ChannelOverrides` | Channel customizations | `ChannelOverrides.cs` |
-| `ChannelList` | Custom channel list | `ChannelList.cs` |
-| `ChannelMapping` | Channel list entry | `ChannelMapping.cs` |
-| `SerializableDictionary<K,V>` | XML-serializable dictionary | `SerializableDictionary.cs` |
-
-**PluginConfiguration Properties**:
-
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `BaseUrl` | string | "https://example.com" | Xtream API base URL |
-| `Username` | string | "" | API username |
-| `Password` | string | "" | API password |
-| `IsCatchupVisible` | bool | false | Show catch-up channel |
-| `IsSeriesVisible` | bool | false | Show series channel |
-| `IsVodVisible` | bool | false | Show VOD channel |
-| `IsTmdbVodOverride` | bool | true | Use TMDB for VOD metadata |
-| `LiveTv` | Dictionary | {} | Selected live TV categories/channels |
-| `Vod` | Dictionary | {} | Selected VOD categories/streams |
-| `Series` | Dictionary | {} | Selected series categories/series |
-| `ChannelLists` | Collection | [] | Custom channel lists |
-| `ChannelMappings` | Dictionary | {} | Channel list mappings |
-| `EnableConnectionQueue` | bool | true | Enable connection queuing |
-| `EnableExtendedCache` | bool | true | Enable extended caching |
-| `MaintenanceStartHour` | int | 3 | Maintenance window start (0-23) |
-| `MaintenanceEndHour` | int | 6 | Maintenance window end (0-23) |
-| `EnableEpgPreload` | bool | true | Auto-preload EPG data |
-| `EnableMetadataUpdate` | bool | true | Auto-update metadata |
-| `EnableThumbnailCache` | bool | true | Enable thumbnail caching |
-| `ThumbnailCacheRetentionDays` | int | 30 | Thumbnail cache retention |
-
-**ChannelMapping Properties**:
-- `StreamId`: Xtream stream ID
-- `Position`: Position in custom list (determines channel number)
-
-#### 5.3 API Models
-
-**Location**: `Api/Models/`
-
-| Model | Purpose | File |
-|-------|---------|------|
-| `CategoryResponse` | Category for admin UI | `CategoryResponse.cs` |
-| `ChannelResponse` | Channel for admin UI | `ChannelResponse.cs` |
-| `ItemResponse` | Stream/series for admin UI | `ItemResponse.cs` |
-| `ChannelMatchResponse` | Fuzzy match result | `ChannelMatchResponse.cs` |
-| `MatchChannelRequest` | Match request payload | `MatchChannelRequest.cs` |
-| `ParseChannelListRequest` | Parse request payload | `ParseChannelListRequest.cs` |
+| Modell | Zweck | Wichtige Properties | Datei |
+|--------|-------|---------------------|-------|
+| `PlayerApi` | User/Server-Info | `UserInfo`, `ServerInfo` | `PlayerApi.cs` |
+| `UserInfo` | Benutzerkonto | `Username`, `Status`, `ExpDate`, `MaxConnections` | `UserInfo.cs` |
+| `ServerInfo` | Server-Details | `Url`, `Timezone` | `ServerInfo.cs` |
+| `Category` | Content-Kategorie | `CategoryId`, `CategoryName` | `Category.cs` |
+| `StreamInfo` | Live/VOD-Stream | `StreamId`, `Name`, `StreamIcon`, `Num`, `TvArchive` | `StreamInfo.cs` |
+| `Series` | TV-Serien | `SeriesId`, `Name`, `Cover`, `Genre`, `Cast`, `Rating5Based` | `Series.cs` |
+| `SeriesStreamInfo` | Serie mit Episoden | `Info`, `Seasons`, `Episodes` | `SeriesStreamInfo.cs` |
+| `Season` | Staffel | `SeasonId`, `Name`, `Cover`, `AirDate`, `Overview` | `Season.cs` |
+| `Episode` | Episode | `EpisodeId`, `Title`, `ContainerExtension`, `Added`, `Info` | `Episode.cs` |
+| `EpisodeInfo` | Episode-Details | `Plot`, `MovieImage`, `Video`, `Audio` | `EpisodeInfo.cs` |
+| `VideoInfo` | Video-Codec | `CodecName`, `Width`, `Height`, `AspectRatio`, `BitDepth` | `VideoInfo.cs` |
+| `AudioInfo` | Audio-Codec | `CodecName`, `Bitrate`, `Channels`, `SampleRate` | `AudioInfo.cs` |
+| `EpgListings` | EPG-Daten | `Listings` (List<EpgInfo>) | `EpgListings.cs` |
+| `EpgInfo` | EPG-Programm | `Id`, `Title`, `Description`, `Start`, `End` | `EpgInfo.cs` |
+| `VodStreamInfo` | VOD mit Metadaten | `Info`, `MovieData` | `VodStreamInfo.cs` |
+| `VodInfo` | VOD-Metadaten | `TmdbId`, `Name`, `Plot`, `Cast`, `Rating` | `VodInfo.cs` |
 
 ---
 
-### 6. API Controller
+#### 5.2 Konfigurations-Modelle
 
-**File**: `Api/XtreamController.cs`
+**Location**: `Configuration/`
 
-**Purpose**: RESTful API endpoints for the plugin's admin UI.
+**PluginConfiguration** (PluginConfiguration.cs:26):
 
-**Base Route**: `/Xtream`
+| Property | Typ | Default | Beschreibung | Zeile |
+|----------|-----|---------|--------------|-------|
+| `BaseUrl` | string | "https://example.com" | Xtream-API-Basis-URL | 31 |
+| `Username` | string | "" | API-Benutzername | 36 |
+| `Password` | string | "" | API-Passwort | 41 |
+| `IsCatchupVisible` | bool | false | Aufzeichnungs-Kanal anzeigen | 46 |
+| `IsSeriesVisible` | bool | false | Serien-Kanal anzeigen | 51 |
+| `IsVodVisible` | bool | false | VOD-Kanal anzeigen | 56 |
+| `IsTmdbVodOverride` | bool | true | TMDB für VOD-Metadaten | 61 |
+| `LiveTv` | Dict | {} | Ausgewählte Live-Kategorien/Kanäle | 66 |
+| `Vod` | Dict | {} | Ausgewählte VOD-Kategorien/Streams | 71 |
+| `Series` | Dict | {} | Ausgewählte Serien-Kategorien | 76 |
+| `ChannelLists` | Collection | [] | Benutzerdefinierte Kanallisten | 81 |
+| `ChannelMappings` | Dict | {} | Kanallisten-Zuordnungen | 86 |
+| `EnableConnectionQueue` | bool | true | Verbindungs-Warteschlange aktivieren | 91 |
+| `EnableExtendedCache` | bool | true | Erweiterten Cache aktivieren | 96 |
+| `MaintenanceStartHour` | int | 3 | Wartungsfenster Start (0-23) | 101 |
+| `MaintenanceEndHour` | int | 6 | Wartungsfenster Ende (0-23) | 106 |
+| `EnableEpgPreload` | bool | true | Auto-Preload EPG-Daten | 111 |
+| `EnableMetadataUpdate` | bool | true | Auto-Update Metadaten | 116 |
+| `EnableThumbnailCache` | bool | true | Thumbnail-Caching aktivieren | 121 |
+| `ThumbnailCacheRetentionDays` | int | 30 | Thumbnail-Cache-Aufbewahrung | 126 |
 
-**Endpoints**:
+**Weitere Config-Modelle**:
 
-| Method | Route | Purpose | Authorization |
-|--------|-------|---------|---------------|
-| GET | `/LiveCategories` | Get all live TV categories | RequiresElevation |
-| GET | `/LiveCategories/{categoryId}` | Get live streams in category | RequiresElevation |
-| GET | `/VodCategories` | Get all VOD categories | RequiresElevation |
-| GET | `/VodCategories/{categoryId}` | Get VOD streams in category | RequiresElevation |
-| GET | `/SeriesCategories` | Get all series categories | RequiresElevation |
-| GET | `/SeriesCategories/{categoryId}` | Get series in category | RequiresElevation |
-| GET | `/LiveTv` | Get all configured TV channels | RequiresElevation |
-| POST | `/ChannelLists/Parse` | Parse TXT channel list | RequiresElevation |
-| POST | `/ChannelLists/Match` | Fuzzy match channel name | RequiresElevation |
-| GET | `/ChannelLists/AllStreams` | Get all available streams | RequiresElevation |
-| GET | `/OptimizationStats` | Get optimization statistics | RequiresElevation |
-| POST | `/ResetChannelOrder` | Clear channel mappings | RequiresElevation |
-| GET | `/UserInfo` | Get Xtream user/server info | RequiresElevation |
-| GET | `/ThumbnailCacheStats` | Get thumbnail cache stats | RequiresElevation |
-| POST | `/ClearThumbnailCache` | Clear thumbnail cache | RequiresElevation |
+| Modell | Zweck | Datei |
+|--------|-------|-------|
+| `ChannelOverrides` | Kanal-Anpassungen (Nummer, Name, Icon) | `ChannelOverrides.cs` |
+| `ChannelList` | Benutzerdefinierte Kanalliste | `ChannelList.cs` |
+| `ChannelMapping` | Kanallisten-Eintrag (StreamId, Position) | `ChannelMapping.cs` |
+| `SerializableDictionary<K,V>` | XML-serialisierbares Dictionary | `SerializableDictionary.cs` |
 
-**Optimization Stats Response**:
+---
+
+#### 5.3 API-Modelle
+
+**Location**: `Api/Models/`
+
+| Modell | Zweck | Datei |
+|--------|-------|-------|
+| `CategoryResponse` | Kategorie für Admin-UI | `CategoryResponse.cs` |
+| `ChannelResponse` | Kanal für Admin-UI | `ChannelResponse.cs` |
+| `ItemResponse` | Stream/Serie für Admin-UI | `ItemResponse.cs` |
+| `ChannelMatchResponse` | Fuzzy-Match-Ergebnis | `ChannelMatchResponse.cs` |
+| `MatchChannelRequest` | Match-Request-Payload | `MatchChannelRequest.cs` |
+| `ParseChannelListRequest` | Parse-Request-Payload | `ParseChannelListRequest.cs` |
+
+---
+
+### 6. API-Controller
+
+**Datei**: `Api/XtreamController.cs`
+**Standort**: `C:\Users\Anwender\Programme\Jellyfin.Xtream-original\Jellyfin.Xtream\Api\XtreamController.cs:40`
+
+RESTful-API-Endpunkte für die Admin-UI des Plugins.
+
+**Basis-Route**: `/Xtream`
+
+**Endpunkte**:
+
+| Methode | Route | Zweck | Auth | Zeile |
+|---------|-------|-------|------|-------|
+| GET | `/LiveCategories` | Live-TV-Kategorien | RequiresElevation | 82 |
+| GET | `/LiveCategories/{categoryId}` | Live-Streams in Kategorie | RequiresElevation | 98 |
+| GET | `/VodCategories` | VOD-Kategorien | RequiresElevation | 116 |
+| GET | `/VodCategories/{categoryId}` | VOD-Streams in Kategorie | RequiresElevation | 132 |
+| GET | `/SeriesCategories` | Serien-Kategorien | RequiresElevation | 150 |
+| GET | `/SeriesCategories/{categoryId}` | Serien in Kategorie | RequiresElevation | 166 |
+| GET | `/LiveTv` | Konfigurierte TV-Kanäle | RequiresElevation | 184 |
+| POST | `/ChannelLists/Parse` | TXT-Kanalliste parsen | RequiresElevation | 198 |
+| POST | `/ChannelLists/Match` | Fuzzy-Match Kanalname | RequiresElevation | 212 |
+| GET | `/ChannelLists/AllStreams` | Alle verfügbaren Streams | RequiresElevation | 244 |
+| GET | `/OptimizationStats` | Optimierungs-Statistiken | RequiresElevation | 273 |
+| POST | `/ResetChannelOrder` | Kanal-Zuordnungen löschen | RequiresElevation | 295 |
+| GET | `/UserInfo` | Xtream User/Server-Info | RequiresElevation | 328 |
+| GET | `/ThumbnailCacheStats` | Thumbnail-Cache-Statistiken | RequiresElevation | 361 |
+| POST | `/ClearThumbnailCache` | Thumbnail-Cache leeren | RequiresElevation | 403 |
+
+**Optimierungs-Statistiken Response** (XtreamController.cs:274):
 ```json
 {
   "isBusy": false,
@@ -522,183 +838,135 @@ The plugin includes custom JSON converters to handle quirks in Xtream API respon
 
 ---
 
-### 7. Providers
-
-#### 7.1 XtreamVodProvider
-
-**File**: `Providers/XtreamVodProvider.cs`
-
-**Purpose**: Metadata provider for VOD content integration with Jellyfin's metadata system.
-
-**Provider Name**: "Xtream"
-
-**Responsibilities**:
-- Provide VOD stream IDs for metadata matching
-- Support Jellyfin's provider system
-
----
-
-### 8. Web UI Components
+### 7. Web-UI-Komponenten
 
 **Location**: `Configuration/Web/`
 
-The plugin provides embedded HTML/CSS/JS resources for the admin UI:
+Embedded HTML/CSS/JS-Ressourcen für die Admin-UI:
 
-| File | Purpose |
-|------|---------|
-| `XtreamCredentials.html` | Credentials configuration page |
-| `XtreamCredentials.js` | Credentials page logic |
-| `XtreamLive.html` | Live TV channel selection |
-| `XtreamLive.js` | Live TV selection logic |
-| `XtreamLiveOverrides.html` | Channel overrides page |
-| `XtreamLiveOverrides.js` | Override management logic |
-| `XtreamChannelLists.html` | Custom channel list management |
-| `XtreamChannelLists.js` | Channel list logic |
-| `XtreamVod.html` | VOD category selection |
-| `XtreamVod.js` | VOD selection logic |
-| `XtreamSeries.html` | Series category selection |
-| `XtreamSeries.js` | Series selection logic |
-| `Xtream.css` | Shared CSS styles |
-| `Xtream.js` | Shared JavaScript utilities |
+| Datei | Zweck |
+|-------|-------|
+| `XtreamCredentials.html` | Zugangsdaten-Konfiguration |
+| `XtreamCredentials.js` | Zugangsdaten-Logic |
+| `XtreamLive.html` | Live-TV-Kanal-Auswahl |
+| `XtreamLive.js` | Live-TV-Logic |
+| `XtreamLiveOverrides.html` | Kanal-Überschreibungen |
+| `XtreamLiveOverrides.js` | Override-Management |
+| `XtreamChannelLists.html` | Custom-Kanallisten |
+| `XtreamChannelLists.js` | Kanallisten-Logic |
+| `XtreamVod.html` | VOD-Kategorie-Auswahl |
+| `XtreamVod.js` | VOD-Logic |
+| `XtreamSeries.html` | Serien-Kategorie-Auswahl |
+| `XtreamSeries.js` | Serien-Logic |
+| `Xtream.css` | Gemeinsame CSS-Styles |
+| `Xtream.js` | Gemeinsame JS-Utilities |
 
-**Embedding**:
-All web resources are embedded as `EmbeddedResource` in the assembly and served via `Plugin.GetPages()`.
+**Embedding** (Plugin.cs:95):
+```csharp
+public IEnumerable<PluginPageInfo> GetPages()
+{
+    return new[]
+    {
+        CreateStatic("XtreamCredentials.html"),
+        CreateStatic("XtreamCredentials.js"),
+        CreateStatic("Xtream.css"),
+        CreateStatic("Xtream.js"),
+        // ... weitere Ressourcen
+    };
+}
+```
 
-**Resource Path Pattern**:
+**Ressourcen-Pfad-Pattern**:
 ```
 Jellyfin.Xtream.Configuration.Web.{filename}
 ```
 
 ---
 
-## Data Flow Diagrams
+## Datenfluss-Diagramme
 
-### Live TV Channel Flow
-
-```
-User Request
-    ↓
-LiveTvService.GetChannelsAsync()
-    ↓
-StreamService.GetLiveStreamsWithOverrides()
-    ↓
-PluginConfiguration (filter by selected categories)
-    ↓
-ChannelMappings (apply custom ordering if configured)
-    ↓
-XtreamClient.GetLiveStreamsAsync()
-    ↓
-ConnectionManager (if enabled)
-    ↓
-Xtream API: /player_api.php?action=get_live_streams
-    ↓
-JSON Deserialize (with custom converters)
-    ↓
-ThumbnailCacheService (cache thumbnails)
-    ↓
-Return ChannelInfo list to Jellyfin
-```
-
-### EPG Data Flow
+### Live-TV-EPG-Fluss
 
 ```
-Jellyfin EPG Request
+Jellyfin EPG-Request
     ↓
 LiveTvService.GetProgramsAsync(channelId, startDate, endDate)
     ↓
-Check Memory Cache (key: "xtream-epg-{channelId}", TTL: 10min)
-    ↓ (cache miss)
+Memory-Cache prüfen (key: "xtream-epg-{channelId}", TTL: 10min)
+    ↓ (Cache-Miss)
 XtreamClient.GetEpgInfoAsync(streamId)
     ↓
-ConnectionManager (if enabled)
+ConnectionManager (falls EnableConnectionQueue = true)
     ↓
 Xtream API: /player_api.php?action=get_simple_data_table&stream_id={id}
     ↓
-JSON Deserialize
+JSON Deserialisieren (mit Custom-Converters)
     ↓
-Store in Memory Cache (10 minutes)
+Im Memory-Cache speichern (10 Minuten)
     ↓
-Filter by date range
+Nach Datumsbereich filtern (startDate ≤ epg.End && epg.Start < endDate)
     ↓
-Return ProgramInfo list to Jellyfin
+ProgramInfo-Liste an Jellyfin zurückgeben
 ```
 
-### Streaming Flow (Direct Stream)
+### VOD/Serien-Streaming-Fluss
 
 ```
-User plays live channel
+User spielt VOD/Episode ab
     ↓
-LiveTvService.GetChannelStreamWithDirectStreamProvider()
+Channel.GetChannelItems() mit Media-Item
     ↓
-Check existing streams (reuse if available)
-    ↓ (new stream needed)
-StreamService.GetMediaSourceInfo(StreamType.Live, channelId, restream: true)
+StreamService.GetMediaSourceInfo(StreamType, streamId, extension)
     ↓
-Generate stream URL: {baseUrl}/{username}/{password}/{streamId}
-    ↓
-Create Restream instance
-    ↓
-Restream.Open() - Starts HTTP stream buffering
-    ↓
-Increment ConsumerCount
-    ↓
-Return ILiveStream to Jellyfin
-    ↓
-Jellyfin transcodes/remuxes stream to client
-```
-
-### VOD/Series Streaming Flow
-
-```
-User plays VOD/episode
-    ↓
-Channel.GetChannelItems() with media item
-    ↓
-StreamService.GetMediaSourceInfo()
-    ↓
-Generate stream URL:
+Stream-URL generieren:
   - VOD: {baseUrl}/movie/{username}/{password}/{streamId}.{ext}
   - Series: {baseUrl}/series/{username}/{password}/{episodeId}.{ext}
     ↓
-Return MediaSourceInfo with Path = stream URL
+MediaSourceInfo mit Path = stream-URL zurückgeben
     ↓
-Jellyfin directly streams URL (no restream buffering)
+Jellyfin streamt URL direkt (kein Restream-Buffering)
+    ↓
+User-Client empfängt Stream
 ```
 
-### Catch-up Streaming Flow
+### Direct-Stream-Fluss (Live-TV)
 
 ```
-User plays catch-up program
+User spielt Live-Kanal ab
     ↓
-CatchupChannel.GetChannelItems() with stream items
+LiveTvService.GetChannelStreamWithDirectStreamProvider(channelId)
     ↓
-StreamService.GetMediaSourceInfo(StreamType.CatchUp, ...)
+Vorhandene Streams prüfen (Reuse falls verfügbar)
+    ↓ (Neuer Stream benötigt)
+StreamService.GetMediaSourceInfo(StreamType.Live, channelId, restream: true)
     ↓
-Generate timeshift URL:
-  {baseUrl}/streaming/timeshift.php?
-    username={username}&
-    password={password}&
-    stream={streamId}&
-    start={YYYY-MM-DD:HH-mm}&
-    duration={minutes}
+Stream-URL generieren: {baseUrl}/{username}/{password}/{streamId}
     ↓
-Return MediaSourceInfo with Path = timeshift URL
+Restream-Instanz erstellen
     ↓
-Jellyfin streams time-shifted content
+Restream.Open() - Startet HTTP-Stream-Pufferung
+    ↓
+ConsumerCount erhöhen
+    ↓
+ILiveStream an Jellyfin zurückgeben
+    ↓
+Jellyfin transcodiert/remuxed Stream zum Client
+    ↓
+User-Client empfängt Stream
 ```
 
 ---
 
-## Plugin Lifecycle
+## Plugin-Lebenszyklus
 
-### 1. Initialization
+### Initialisierung
 
 ```
-Jellyfin Server Starts
+Jellyfin-Server startet
     ↓
 PluginServiceRegistrator.RegisterServices()
     ↓
-Register singletons:
+Services als Singletons registrieren:
   - LiveTvService
   - VodChannel
   - SeriesChannel
@@ -709,21 +977,23 @@ Register singletons:
   - ChannelListService
   - ThumbnailCacheService
     ↓
-Plugin constructor called
+Plugin-Constructor aufgerufen
     ↓
-Initialize StreamService and TaskService
+StreamService & TaskService initialisieren
     ↓
-Plugin.Instance becomes available
+Plugin.Instance wird verfügbar
+    ↓
+Jellyfin scannt nach Channels & Live-TV
 ```
 
-### 2. Configuration Update
+### Konfigurations-Update
 
 ```
-User saves configuration in admin UI
+User speichert Config in Admin-UI
     ↓
 Plugin.UpdateConfiguration(newConfig)
     ↓
-base.UpdateConfiguration(newConfig) - Save to XML
+base.UpdateConfiguration(newConfig) - In XML speichern
     ↓
 TaskService.CancelIfRunningAndQueue(
   "Jellyfin.LiveTv.Guide.RefreshGuideScheduledTask")
@@ -731,36 +1001,20 @@ TaskService.CancelIfRunningAndQueue(
 TaskService.CancelIfRunningAndQueue(
   "Jellyfin.LiveTv.Channels.RefreshChannelsScheduledTask")
     ↓
-Jellyfin refreshes all channels and EPG data
-```
-
-### 3. Channel Discovery
-
-```
-Jellyfin scans for channels
+Jellyfin aktualisiert alle Channels & EPG-Daten
     ↓
-LiveTvService.GetChannelsAsync()
-    ↓
-VodChannel.GetChannelItems(root query)
-    ↓
-SeriesChannel.GetChannelItems(root query)
-    ↓
-CatchupChannel.GetChannelItems(root query)
-    ↓
-Each channel queries Xtream API for configured content
-    ↓
-Channels are added to Jellyfin's Live TV system
+UI zeigt neue Kanäle/EPG
 ```
 
 ---
 
-## Security Considerations
+## Sicherheitsüberlegungen
 
-### Known Security Issue: Credential Exposure
+### Bekanntes Sicherheitsproblem: Credential-Exposure
 
-**Issue**: Jellyfin publishes remote stream paths in its API and default UI. Since Xtream format includes credentials in URLs, anyone with library access can view credentials.
+**Problem**: Jellyfin veröffentlicht Remote-Stream-Pfade in seiner API und Standard-UI. Da Xtream-Format Credentials in URLs einschließt, kann jeder mit Bibliothekszugriff die Credentials sehen.
 
-**URL Format Examples**:
+**URL-Format-Beispiele**:
 ```
 Live:    {baseUrl}/{username}/{password}/{streamId}
 VOD:     {baseUrl}/movie/{username}/{password}/{streamId}.{ext}
@@ -768,57 +1022,130 @@ Series:  {baseUrl}/series/{username}/{password}/{episodeId}.{ext}
 Catchup: {baseUrl}/streaming/timeshift.php?username={user}&password={pass}&stream={id}&...
 ```
 
-**Impact**: Users with access to the Jellyfin library can extract API credentials.
+**Impact**: Users mit Zugriff auf die Jellyfin-Bibliothek können API-Credentials extrahieren.
 
-**Mitigation**:
-- Documented in README.md under "Known problems / Loss of confidentiality"
-- Recommend using plugin only on trusted/private servers
-- Consider using API credentials with limited permissions if provider supports it
+**Aktuelle Mitigation**:
+- In README.md unter "Known problems / Loss of confidentiality" dokumentiert
+- Empfehlung: Plugin nur auf vertrauenswürdigen/privaten Servern verwenden
+- Erwägen Sie API-Credentials mit limitierten Berechtigungen falls Provider unterstützt
+
+**Geplante Lösung** (siehe tasks.md TASK-002):
+- Proxy-System implementieren
+- Token-basierte Stream-URLs statt Credentials
+- Tokens mit 24h-Expiration
+- Redirect-Logic zu echten URLs
 
 ---
 
-## Code Quality and Standards
+## Performance & Caching
 
-### Analysis and Enforcement
+### Caching-Strategie (3-Tier-System)
 
-The project uses strict code quality standards:
+| Cache-Typ | Location | TTL | Zweck | Config |
+|-----------|----------|-----|-------|--------|
+| **EPG-Cache** | Memory (IMemoryCache) | 10min | EPG-API-Calls reduzieren | Hardcoded |
+| **Extended-Cache** | CacheService | Config | General-API-Caching | `EnableExtendedCache` |
+| **Thumbnail-Cache** | Disk | 30d | Image-Caching | `EnableThumbnailCache` |
 
-| Tool | Purpose | Configuration |
-|------|---------|---------------|
-| **StyleCop.Analyzers** | C# style enforcement | Version 1.2.0-beta.556 |
-| **SerilogAnalyzer** | Logging best practices | Version 0.15.0 |
-| **MultithreadingAnalyzer** | Threading safety | Version 1.1.31 |
-| **.editorconfig** | Formatting rules | Root of project |
-| **jellyfin.ruleset** | Custom analysis rules | Root of project |
+### Connection-Management
 
-### Project Settings
+**Connection-Queue** (optional):
+- Verhindert gleichzeitige API-Calls
+- Tracking von Request-Statistics
+- Konfigurierbar via `EnableConnectionQueue`
 
-```xml
-<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-<Nullable>enable</Nullable>
-<AnalysisMode>AllEnabledByDefault</AnalysisMode>
-<GenerateDocumentationFile>true</GenerateDocumentationFile>
+**Vorteile**:
+- Verhindert Provider-Rate-Limiting
+- Reduziert Server-Last
+- Verbessert Stabilität mit langsamen Providern
+
+### Memory-Überlegungen
+
+**EPG-Daten**:
+- Cached per-channel für 10min
+- Large-Channel-Lineups mit häufigen EPG-Requests können signifikanten Memory verbrauchen
+- Erwägung: Adaptive TTL basierend auf Update-Frequency
+
+**Thumbnails**:
+- Auf Disk gespeichert, nicht in Memory
+- Cache-Size wächst basierend auf Anzahl Channels/Content
+- Automatisches Cleanup via Retention-Policy (geplant: TASK-007)
+
+---
+
+## Build & Deployment
+
+### Build-Commands
+
+```bash
+# Debug-Build
+dotnet build Jellyfin.Xtream.sln
+
+# Release-Build
+dotnet build Jellyfin.Xtream.sln -c Release
+
+# Clean
+dotnet clean Jellyfin.Xtream.sln
+
+# Restore
+dotnet restore Jellyfin.Xtream.sln
 ```
 
-### Documentation Requirements
+### Output
 
-All public APIs must have XML documentation comments.
+**Assembly**: `CandyTv.dll`
+**Location**: `bin/Release/net8.0/CandyTv.dll`
+
+### Unraid-Installation
+
+#### 1. Plugin-Verzeichnis
+
+```bash
+# Standard Jellyfin Unraid Plugin-Pfad
+/mnt/user/appdata/jellyfin/plugins/CandyTv_0.0.2/
+```
+
+#### 2. Installation
+
+```bash
+# Plugin-Ordner erstellen
+mkdir -p /mnt/user/appdata/jellyfin/plugins/CandyTv_0.0.2
+
+# DLL kopieren
+cp bin/Release/net8.0/CandyTv.dll /mnt/user/appdata/jellyfin/plugins/CandyTv_0.0.2/
+
+# Permissions setzen
+chown -R 99:100 /mnt/user/appdata/jellyfin/plugins/
+chmod -R 755 /mnt/user/appdata/jellyfin/plugins/
+
+# Container neustarten
+docker restart jellyfin
+```
+
+#### 3. Konfiguration
+
+```
+Jellyfin Admin Dashboard
+  → Plugins
+  → CandyTv
+  → Zugangsdaten konfigurieren
+```
 
 ---
 
 ## Dependencies
 
-### Runtime Dependencies
+### Runtime-Dependencies
 
-| Package | Version | Purpose |
-|---------|---------|---------|
-| **Jellyfin.Controller** | 10.10.7 | Jellyfin server integration |
-| **Jellyfin.Model** | 10.10.7 | Jellyfin data models |
-| **Newtonsoft.Json** | 13.0.3 | JSON serialization |
-| **FuzzySharp** | 2.0.2 | Fuzzy string matching for channel lists |
+| Package | Version | Zweck |
+|---------|---------|-------|
+| **Jellyfin.Controller** | 10.10.7 | Jellyfin-Server-Integration |
+| **Jellyfin.Model** | 10.10.7 | Jellyfin-Datenmodelle |
+| **Newtonsoft.Json** | 13.0.3 | JSON-Serialisierung |
+| **FuzzySharp** | 2.0.2 | Fuzzy-String-Matching |
 | **Microsoft.AspNetCore.App** | (Framework) | ASP.NET Core APIs |
 
-### Analyzer Dependencies (Development)
+### Analyzer-Dependencies (Development)
 
 | Package | Version |
 |---------|---------|
@@ -828,320 +1155,133 @@ All public APIs must have XML documentation comments.
 
 ---
 
-## Build and Deployment
+## Code-Qualität & Standards
 
-### Build Commands
+### Projekt-Settings
 
-```bash
-# Debug build
-dotnet build Jellyfin.Xtream.sln
-
-# Release build
-dotnet build Jellyfin.Xtream.sln -c Release
-
-# Clean
-dotnet clean Jellyfin.Xtream.sln
-
-# Restore dependencies
-dotnet restore Jellyfin.Xtream.sln
+```xml
+<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+<Nullable>enable</Nullable>
+<AnalysisMode>AllEnabledByDefault</AnalysisMode>
+<GenerateDocumentationFile>true</GenerateDocumentationFile>
 ```
 
-### Output
+### Analyzer-Config
 
-**Assembly**: `CandyTv.dll`
+- **StyleCop.Analyzers**: C#-Style-Enforcement
+- **SerilogAnalyzer**: Logging-Best-Practices
+- **MultithreadingAnalyzer**: Threading-Safety
+- **.editorconfig**: Formatting-Rules
+- **jellyfin.ruleset**: Custom-Analysis-Rules
 
-**Location**: `bin/Release/net8.0/CandyTv.dll`
-
-### Installation
-
-1. Copy `CandyTv.dll` to Jellyfin's plugin directory:
-   - Windows: `%AppData%\Jellyfin\Server\plugins\CandyTv_0.0.2\`
-   - Linux: `/var/lib/jellyfin/plugins/CandyTv_0.0.2/`
-   - Docker: `/config/plugins/CandyTv_0.0.2/`
-
-2. Restart Jellyfin server
-
-3. Configure credentials in admin dashboard under Plugins → CandyTv
+**Alle public APIs müssen XML-Documentation haben!**
 
 ---
 
-## Configuration Workflow
+## Fehlerbehebung
 
-### 1. Initial Setup (Credentials)
+### Häufige Probleme
 
-Admin Dashboard → Plugins → CandyTv → Credentials
+#### Kanäle erscheinen nicht
+1. Credentials in Admin-UI prüfen
+2. Kategorien-Auswahl prüfen
+3. Jellyfin-Logs checken
+4. API-Test: `/Xtream/UserInfo`
 
-- Set Base URL (e.g., `https://example.com`)
-- Set Username
-- Set Password
-- Click Save
+#### Streams spielen nicht
+1. `Published server URIs` konfigurieren (Jellyfin Networking)
+2. Stream-URLs in Logs prüfen
+3. Direkt in VLC testen
+4. Transcoding-Logs prüfen
 
-### 2. Live TV Configuration
+#### Fehlende EPG-Daten
+1. Manual-Refresh: Dashboard → Live TV → Refresh
+2. Provider-EPG-Verfügbarkeit prüfen
+3. Logs auf API-Errors prüfen
 
-**Channel Selection**:
-
-Admin Dashboard → Plugins → CandyTv → Live TV
-
-- Select categories or individual channels
-- Enable/disable catch-up visibility
-- Click Save
-
-**Channel Overrides**:
-
-Admin Dashboard → Plugins → CandyTv → TV Overrides
-
-- Modify channel numbers
-- Rename channels
-- Override channel icons
-- Click Save
-
-**Custom Channel Lists** (Optional):
-
-Admin Dashboard → Plugins → CandyTv → Channel Lists
-
-- Upload TXT file with channel names (one per line)
-- Use fuzzy matching to map to Xtream channels
-- Define custom channel ordering
-- Click Save
-
-### 3. VOD Configuration
-
-Admin Dashboard → Plugins → CandyTv → Video On-Demand
-
-- Enable "Show this channel to users"
-- Select categories or individual videos
-- Click Save
-
-### 4. Series Configuration
-
-Admin Dashboard → Plugins → CandyTv → Series
-
-- Enable "Show this channel to users"
-- Select categories or individual series
-- Click Save
-
-### 5. Advanced Settings
-
-Admin Dashboard → Plugins → CandyTv → Advanced
-
-- Connection queuing settings
-- Cache settings (extended cache, EPG preload, metadata updates)
-- Thumbnail cache settings
-- Maintenance window configuration
-- View optimization statistics
+#### Langsame Performance
+1. `EnableConnectionQueue` aktivieren
+2. `EnableExtendedCache` aktivieren
+3. `EnableEpgPreload` aktivieren
+4. Kategorien/Kanäle reduzieren
+5. Stats monitoren: `/Xtream/OptimizationStats`
 
 ---
 
-## Memory and Performance
+## Unraid-Spezifika
 
-### Caching Strategy
+### Docker-Commands
 
-| Cache Type | Location | TTL | Purpose |
-|------------|----------|-----|---------|
-| **EPG Cache** | Memory (IMemoryCache) | 10 minutes | Reduce EPG API calls |
-| **Extended Cache** | CacheService | Configurable | Reduce general API calls |
-| **Thumbnail Cache** | Disk | 30 days (default) | Avoid re-downloading images |
+```bash
+# Status
+docker ps | grep jellyfin
 
-### Connection Management
+# Logs
+docker logs jellyfin
 
-**Connection Queue**:
-- Prevents concurrent API calls if enabled
-- Tracks request statistics
-- Configurable via `EnableConnectionQueue`
+# Shell
+docker exec -it jellyfin bash
 
-**Benefits**:
-- Prevents provider rate limiting
-- Reduces server load
-- Improves stability with slow providers
+# Restart
+docker restart jellyfin
+```
 
-### Memory Considerations
+### Backup-Verzeichnisse
 
-**EPG Data**: Cached per-channel for 10 minutes. Large channel lineups with frequent EPG requests may consume significant memory.
+```bash
+/mnt/user/appdata/jellyfin/plugins/      # Plugins
+/mnt/user/appdata/jellyfin/config/       # Configs
+/mnt/user/appdata/jellyfin/data/         # Database
+```
 
-**Thumbnails**: Stored on disk, not in memory. Cache size grows based on number of channels and content items.
+### Network-Config
 
----
+- **Network Type**: Bridge oder Custom (br0 für dedizierte IP)
+- **Ports**: 8096:8096 (HTTP), 8920:8920 (HTTPS)
 
-## Troubleshooting
+### Permissions
 
-### Common Issues
-
-#### Issue: Channels not appearing
-
-**Causes**:
-- Credentials not configured
-- Categories not selected
-- Network connectivity issues
-
-**Solution**:
-1. Verify credentials in admin UI
-2. Check category/channel selection
-3. Check Jellyfin logs for errors
-4. Test API connectivity: `/Xtream/UserInfo`
-
-#### Issue: Streams not playing
-
-**Causes**:
-- Invalid stream URLs
-- Network issues
-- Transcoding problems
-- Published server URI not configured
-
-**Solution**:
-1. Check Jellyfin networking configuration (`Published server URIs`)
-2. Verify stream URL format in logs
-3. Test stream URL directly in VLC/browser
-4. Check transcoding logs
-
-#### Issue: Missing EPG data
-
-**Causes**:
-- Provider does not supply EPG
-- EPG cache expired
-- API connectivity issues
-
-**Solution**:
-1. Force refresh: Admin Dashboard → Live TV → Guide Data → Refresh
-2. Check provider EPG availability
-3. Review logs for API errors
-
-#### Issue: Slow performance
-
-**Causes**:
-- Connection queuing disabled
-- Cache disabled
-- Large channel/content library
-- Slow provider API
-
-**Solution**:
-1. Enable connection queue (`EnableConnectionQueue`)
-2. Enable extended cache (`EnableExtendedCache`)
-3. Enable EPG preload (`EnableEpgPreload`)
-4. Reduce selected categories/channels
-5. Monitor optimization stats via `/Xtream/OptimizationStats`
+**Standard Unraid**:
+- **PUID**: 99 (nobody)
+- **PGID**: 100 (users)
 
 ---
 
-## API Reference (Xtream)
+## Xtream-API-Referenz
 
-### Base URL Format
+### Base-URL
 
 ```
 https://example.com/player_api.php?username={user}&password={pass}&action={action}
 ```
 
-### Actions Used
+### Actions
 
-| Action | Parameters | Returns |
-|--------|------------|---------|
-| `get_live_streams` | `category_id` (optional) | Live TV channels |
-| `get_live_categories` | - | Live TV categories |
-| `get_vod_streams` | `category_id` | VOD streams |
-| `get_vod_info` | `vod_id` | VOD metadata |
-| `get_vod_categories` | - | VOD categories |
-| `get_series` | `category_id` | Series list |
-| `get_series_info` | `series_id` | Series metadata with seasons/episodes |
-| `get_series_categories` | - | Series categories |
-| `get_simple_data_table` | `stream_id` | EPG data |
-| (none) | - | User and server info |
+| Action | Parameter | Returns |
+|--------|-----------|---------|
+| (none) | - | User/Server-Info |
+| `get_live_streams` | `category_id` (opt) | Live-Channels |
+| `get_live_categories` | - | Live-Categories |
+| `get_vod_streams` | `category_id` | VOD-Streams |
+| `get_vod_info` | `vod_id` | VOD-Metadata |
+| `get_vod_categories` | - | VOD-Categories |
+| `get_series` | `category_id` | Series-List |
+| `get_series_info` | `series_id` | Series-Details |
+| `get_series_categories` | - | Series-Categories |
+| `get_simple_data_table` | `stream_id` | EPG-Data |
 
-### Stream URL Formats
+### Stream-URLs
 
 ```
-Live:    {baseUrl}/{username}/{password}/{streamId}.{ext}
-VOD:     {baseUrl}/movie/{username}/{password}/{streamId}.{ext}
-Series:  {baseUrl}/series/{username}/{password}/{episodeId}.{ext}
-Catchup: {baseUrl}/streaming/timeshift.php?username={user}&password={pass}&stream={id}&start={YYYY-MM-DD:HH-mm}&duration={minutes}
+Live:    {baseUrl}/{user}/{pass}/{streamId}.{ext}
+VOD:     {baseUrl}/movie/{user}/{pass}/{streamId}.{ext}
+Series:  {baseUrl}/series/{user}/{pass}/{episodeId}.{ext}
+Catchup: {baseUrl}/streaming/timeshift.php?username={user}&password={pass}&stream={id}&start={YYYY-MM-DD:HH-mm}&duration={min}
 ```
 
 ---
 
-## Testing
-
-### Current State
-
-No automated tests are present in the repository.
-
-### Testing Approach
-
-The project relies on:
-- GitHub Actions workflows for CI/CD
-- CodeQL scanning for security analysis
-- Manual testing against live Xtream API endpoints
-
-### Future Improvements
-
-Consider adding:
-- Unit tests for service layer
-- Integration tests with mock Xtream API
-- UI automation tests for admin pages
-- Performance tests for large channel lineups
-
----
-
-## Future Enhancements
-
-### Potential Features
-
-1. **EPG Image Support**: Display EPG program images in catch-up UI
-2. **Advanced Filtering**: Search/filter channels by name, tags, or category
-3. **Multi-Profile Support**: Different channel configurations per Jellyfin user
-4. **Recording Support**: Implement recording functionality via Jellyfin's Live TV system
-5. **Statistics Dashboard**: Enhanced admin UI with detailed usage statistics
-6. **M3U Export**: Export configured channels as M3U playlist
-7. **Provider Testing**: Built-in provider connection testing tool
-8. **Backup/Restore**: Configuration backup and restore functionality
-
-### Technical Debt
-
-1. **Testing**: Add comprehensive unit and integration tests
-2. **Documentation**: Expand inline code documentation
-3. **Error Handling**: Improve error messages for common configuration mistakes
-4. **Async/Await**: Review and optimize async patterns throughout codebase
-5. **Cancellation**: Ensure all long-running operations respect CancellationToken
-
----
-
-## Contributing
-
-### Code Style
-
-- Follow StyleCop.Analyzers rules
-- Enable nullable reference types
-- Document all public APIs with XML comments
-- Treat warnings as errors
-- Use C# 12 features where appropriate
-
-### Pull Request Process
-
-1. Fork the repository
-2. Create feature branch
-3. Ensure all analyzers pass
-4. Update documentation
-5. Submit PR with detailed description
-
-### License
-
-GPL-3.0 - See LICENSE file for details
-
----
-
-## References
-
-### External Documentation
-
-- [Xtream API Documentation](https://xtream-ui.org/api-xtreamui-xtreamcode/)
-- [Jellyfin Plugin Development](https://jellyfin.org/docs/general/server/plugins/)
-- [Jellyfin Live TV](https://jellyfin.org/docs/general/server/live-tv/)
-
-### Repository
-
-- **GitHub**: https://github.com/Kevinjil/Jellyfin.Xtream
-- **Issues**: https://github.com/Kevinjil/Jellyfin.Xtream/issues
-
----
-
-## Appendix: File Structure
+## Datei-Struktur
 
 ```
 Jellyfin.Xtream/
@@ -1221,18 +1361,39 @@ Jellyfin.Xtream/
 ├── Plugin.cs
 ├── PluginServiceRegistrator.cs
 ├── SeriesChannel.cs
-└── VodChannel.cs
+├── VodChannel.cs
+├── Jellyfin.Xtream.csproj
+├── .editorconfig
+├── jellyfin.ruleset
+├── spec.md (dieses Dokument)
+├── plan.md
+├── tasks.md
+└── ai-behavior.md
 ```
 
 ---
 
-## Document Version
+## Referenzen
 
-**Version**: 1.0
-**Date**: 2025-01-13
-**Based on**: CandyTv v0.0.2 / Jellyfin.Xtream codebase
-**Author**: Generated from source code analysis
+### Externe Dokumentation
+
+- [Xtream API Documentation](https://xtream-ui.org/api-xtreamui-xtreamcode/)
+- [Jellyfin Plugin Development](https://jellyfin.org/docs/general/server/plugins/)
+- [Jellyfin Live TV](https://jellyfin.org/docs/general/server/live-tv/)
+
+### Repository
+
+- **GitHub**: https://github.com/andreaspointecker-source/Jellyfin-Plugin
+- **Issues**: https://github.com/andreaspointecker-source/Jellyfin-Plugin/issues
 
 ---
 
-**End of Specification**
+**Spezifikations-Version**: 1.0
+**Datum**: 2025-01-13
+**Basierend auf**: CandyTv v0.0.2
+**Root**: `C:\Users\Anwender\Programme\Jellyfin.Xtream-original\Jellyfin.Xtream`
+**Autor**: Generiert aus Source-Code-Analyse
+
+---
+
+**Ende der Spezifikation**

@@ -819,11 +819,11 @@ Eine Task gilt als "Done" wenn:
 ## Kontakt & Collaboration
 
 ### Issue-Tracking
-- **GitHub Issues**: https://github.com/Kevinjil/Jellyfin.Xtream/issues
+- **GitHub Issues**: https://github.com/andreaspointecker-source/Jellyfin-Plugin/issues
 - **Label-System**: `bug`, `enhancement`, `documentation`, `performance`, `security`
 
 ### Project-Board
-- **GitHub Projects**: https://github.com/users/Kevinjil/projects/[TBD]
+- **GitHub Projects**: https://github.com/users/andreaspointecker-source/projects/[TBD]
 - **Columns**: Backlog, Sprint, In Progress, Review, Done
 
 ---
