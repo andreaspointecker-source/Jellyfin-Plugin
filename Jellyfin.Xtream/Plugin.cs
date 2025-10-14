@@ -16,6 +16,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Reflection;
 using Jellyfin.Xtream.Client;
 using Jellyfin.Xtream.Configuration;
@@ -57,6 +58,11 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     public override Guid Id => Guid.Parse("5d774c35-8567-46d3-a950-9bb8227a0c5d");
 
     /// <summary>
+    /// Gets the plugin thumbnail image format.
+    /// </summary>
+    public MediaBrowser.Model.Drawing.ImageFormat ThumbImageFormat => MediaBrowser.Model.Drawing.ImageFormat.Png;
+
+    /// <summary>
     /// Gets the Xtream connection info with credentials.
     /// </summary>
     public ConnectionInfo Creds => new(Configuration.BaseUrl, Configuration.Username, Configuration.Password);
@@ -80,6 +86,16 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     /// Gets the task service instance.
     /// </summary>
     public TaskService TaskService { get; init; }
+
+    /// <summary>
+    /// Gets the plugin thumbnail image stream.
+    /// </summary>
+    /// <returns>A stream containing the plugin icon.</returns>
+    public Stream? GetThumbImage()
+    {
+        var type = GetType();
+        return type.Assembly.GetManifestResourceStream($"{type.Namespace}.icon.CandyTV.png");
+    }
 
     private static PluginPageInfo CreateStatic(string name) => new()
     {
