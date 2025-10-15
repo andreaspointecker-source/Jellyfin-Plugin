@@ -96,7 +96,26 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
         var type = GetType();
         var resourceName = $"{type.Namespace}.icon.CandyTV.png";
 
-        // Try to load from embedded resource
+        // Method 1: Try to load from GitHub URL
+        try
+        {
+            using var httpClient = new System.Net.Http.HttpClient();
+            httpClient.Timeout = TimeSpan.FromSeconds(5);
+            var iconUrl = "https://raw.githubusercontent.com/andreaspointecker-source/Jellyfin-Plugin/master/Jellyfin.Xtream/icon/CandyTV.png";
+            var response = httpClient.GetAsync(iconUrl).GetAwaiter().GetResult();
+
+            if (response.IsSuccessStatusCode)
+            {
+                var imageBytes = response.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult();
+                return new MemoryStream(imageBytes);
+            }
+        }
+        catch
+        {
+            // Fallback to next method if GitHub is unreachable
+        }
+
+        // Method 2: Try to load from embedded resource
         var stream = type.Assembly.GetManifestResourceStream(resourceName);
 
         if (stream != null)
@@ -104,7 +123,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
             return stream;
         }
 
-        // Fallback: Try to load from file system (thumb.png in same directory as DLL)
+        // Method 3: Try to load from file system (thumb.png in same directory as DLL)
         try
         {
             var assemblyLocation = type.Assembly.Location;
@@ -129,7 +148,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
         var availableResources = type.Assembly.GetManifestResourceNames();
         var logger = Microsoft.Extensions.Logging.LoggerFactory.Create(builder => { }).CreateLogger<Plugin>();
         logger.LogWarning(
-            "Failed to load thumb image from both embedded resource and file system. Looking for: {ResourceName}. Available resources: {Resources}",
+            "Failed to load thumb image from GitHub, embedded resource, and file system. Looking for: {ResourceName}. Available resources: {Resources}",
             resourceName,
             string.Join(", ", availableResources));
 
