@@ -6,8 +6,8 @@
   "owner": "Candy",
   "overview": "Stream content from an Xtream-compatible server.",
   "targetAbi": "10.10.7.0",
-  "version": "0.0.9.0",
-  "changelog": "Fixed plugin icon display by including meta.json with ImagePath. Removed conflicting API controller.",
-  "timestamp": "2025-10-15T20:30:00Z",
+  "version": "0.0.10.0",
+  "changelog": "Fixed icon display with correct imagePath in meta.json",
+  "timestamp": "2025-10-15T20:45:00Z",
   "imagePath": "thumb.png"
 }
