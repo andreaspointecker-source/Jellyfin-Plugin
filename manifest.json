@@ -6,6 +6,7 @@
     "overview": "Stream content from an Xtream-compatible server.",
     "owner": "Candy",
     "category": "Live TV",
+    "image": "CandyTV.png",
     "imageUrl": "https://raw.githubusercontent.com/andreaspointecker-source/Jellyfin-Plugin/master/Jellyfin.Xtream/icon/CandyTV.png",
     "versions": [
       {
@@ -14,7 +15,8 @@
         "targetAbi": "10.10.7.0",
         "sourceUrl": "https://github.com/andreaspointecker-source/Jellyfin-Plugin/releases/download/v0.0.12/CandyTv_0.0.12.zip",
         "checksum": "c4e38e0854927eb2fb9265c9d4c5d24a",
-        "timestamp": "2025-10-15T21:00:00Z"
+        "timestamp": "2025-10-15T21:00:00Z",
+        "image": "CandyTV.png"
       },
       {
         "version": "0.0.11",
