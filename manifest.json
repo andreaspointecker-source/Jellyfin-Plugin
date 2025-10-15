@@ -10,6 +10,15 @@
     "imageUrl": "https://raw.githubusercontent.com/andreaspointecker-source/Jellyfin-Plugin/master/Jellyfin.Xtream/icon/CandyTV.png",
     "versions": [
       {
+        "version": "0.0.13",
+        "changelog": "Added image property to build.yaml and manifest. Icon file CandyTV.png properly referenced and included in package.",
+        "targetAbi": "10.10.7.0",
+        "sourceUrl": "https://github.com/andreaspointecker-source/Jellyfin-Plugin/releases/download/v0.0.13/CandyTv_0.0.13.zip",
+        "checksum": "3f976d8d9ee653bedaeb278267f8970d",
+        "timestamp": "2025-10-15T21:45:00Z",
+        "image": "CandyTV.png"
+      },
+      {
         "version": "0.0.12",
         "changelog": "Fixed icon filename case-sensitivity issue. Icon file now CandyTV.png (capital V) to match repository imageUrl filename.",
         "targetAbi": "10.10.7.0",
