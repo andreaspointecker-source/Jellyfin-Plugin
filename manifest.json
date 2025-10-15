@@ -10,6 +10,15 @@
     "imageUrl": "https://raw.githubusercontent.com/andreaspointecker-source/Jellyfin-Plugin/master/Jellyfin.Xtream/icon/CandyTV.png",
     "versions": [
       {
+        "version": "0.0.14",
+        "changelog": "Version bump to 0.0.14. Image property already configured in build.yaml pointing to CandyTV.png.",
+        "targetAbi": "10.10.7.0",
+        "sourceUrl": "https://github.com/andreaspointecker-source/Jellyfin-Plugin/releases/download/v0.0.14/CandyTv_0.0.14.zip",
+        "checksum": "",
+        "timestamp": "2025-10-15T22:00:00Z",
+        "image": "CandyTV.png"
+      },
+      {
         "version": "0.0.13",
         "changelog": "Added image property to build.yaml and manifest. Icon file CandyTV.png properly referenced and included in package.",
         "targetAbi": "10.10.7.0",
