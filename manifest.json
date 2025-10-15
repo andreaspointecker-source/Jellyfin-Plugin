@@ -13,7 +13,7 @@
         "changelog": "Add plugin icon support for My Plugins page. Icon now displays both in catalog and installed plugins list. Complete ZIP package with all dependencies (Diacritics.dll, FuzzySharp.dll, ICU4N.dll, ICU4N.Transliterator.dll, J2N.dll, Newtonsoft.Json.dll).",
         "targetAbi": "10.10.7.0",
         "sourceUrl": "https://github.com/andreaspointecker-source/Jellyfin-Plugin/releases/download/v0.0.3/CandyTv_0.0.3.zip",
-        "checksum": "",
+        "checksum": "20727d5160f82326f7320b1676aa1fd9",
         "timestamp": "2025-10-15T16:15:00Z"
       },
       {
