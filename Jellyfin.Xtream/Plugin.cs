@@ -94,7 +94,21 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     public Stream? GetThumbImage()
     {
         var type = GetType();
-        return type.Assembly.GetManifestResourceStream($"{type.Namespace}.icon.CandyTV.png");
+        var resourceName = $"{type.Namespace}.icon.CandyTV.png";
+        var stream = type.Assembly.GetManifestResourceStream(resourceName);
+
+        if (stream == null)
+        {
+            // Log available resources for debugging
+            var availableResources = type.Assembly.GetManifestResourceNames();
+            var logger = Microsoft.Extensions.Logging.LoggerFactory.Create(builder => { }).CreateLogger<Plugin>();
+            logger.LogWarning(
+                "Failed to load thumb image. Looking for: {ResourceName}. Available resources: {Resources}",
+                resourceName,
+                string.Join(", ", availableResources));
+        }
+
+        return stream;
     }
 
     private static PluginPageInfo CreateStatic(string name) => new()

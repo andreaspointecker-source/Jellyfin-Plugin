@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/andreaspointecker-source/Jellyfin-Plugin/master/Jellyfin.Xtream/icon/CandyTV.png",
     "versions": [
       {
+        "version": "0.0.4",
+        "changelog": "Improved icon loading with debug logging. Enhanced GetThumbImage() method with resource validation and fallback mechanisms. Fixes broken icon display in My Plugins page.",
+        "targetAbi": "10.10.7.0",
+        "sourceUrl": "https://github.com/andreaspointecker-source/Jellyfin-Plugin/releases/download/v0.0.4/CandyTv_0.0.4.zip",
+        "checksum": "02c9941a5359e983436f1fa0936f93cd",
+        "timestamp": "2025-10-15T17:45:00Z"
+      },
+      {
         "version": "0.0.3",
         "changelog": "Add plugin icon support for My Plugins page. Icon now displays both in catalog and installed plugins list. Complete ZIP package with all dependencies (Diacritics.dll, FuzzySharp.dll, ICU4N.dll, ICU4N.Transliterator.dll, J2N.dll, Newtonsoft.Json.dll) and thumb.png icon file.",
         "targetAbi": "10.10.7.0",
