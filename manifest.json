@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/andreaspointecker-source/Jellyfin-Plugin/master/Jellyfin.Xtream/icon/CandyTV.png",
     "versions": [
       {
+        "version": "0.0.6",
+        "changelog": "Enhanced icon loading with dual fallback mechanism. Tries embedded resource first, then file system. Better error handling and detailed logging to identify icon loading issues.",
+        "targetAbi": "10.10.7.0",
+        "sourceUrl": "https://github.com/andreaspointecker-source/Jellyfin-Plugin/releases/download/v0.0.6/CandyTv_0.0.6.zip",
+        "checksum": "6843cac73e976d1ede705240dc356e1f",
+        "timestamp": "2025-10-15T18:47:00Z"
+      },
+      {
         "version": "0.0.5",
         "changelog": "Final icon display fix. thumb.png now automatically copied to plugin directory during build. Icon file always present alongside DLL. Fixes persistent broken icon issue after restart.",
         "targetAbi": "10.10.7.0",

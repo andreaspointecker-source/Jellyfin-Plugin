@@ -95,20 +95,45 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     {
         var type = GetType();
         var resourceName = $"{type.Namespace}.icon.CandyTV.png";
+
+        // Try to load from embedded resource
         var stream = type.Assembly.GetManifestResourceStream(resourceName);
 
-        if (stream == null)
+        if (stream != null)
         {
-            // Log available resources for debugging
-            var availableResources = type.Assembly.GetManifestResourceNames();
-            var logger = Microsoft.Extensions.Logging.LoggerFactory.Create(builder => { }).CreateLogger<Plugin>();
-            logger.LogWarning(
-                "Failed to load thumb image. Looking for: {ResourceName}. Available resources: {Resources}",
-                resourceName,
-                string.Join(", ", availableResources));
+            return stream;
         }
 
-        return stream;
+        // Fallback: Try to load from file system (thumb.png in same directory as DLL)
+        try
+        {
+            var assemblyLocation = type.Assembly.Location;
+            var assemblyDirectory = Path.GetDirectoryName(assemblyLocation);
+
+            if (!string.IsNullOrEmpty(assemblyDirectory))
+            {
+                var thumbPath = Path.Combine(assemblyDirectory, "thumb.png");
+
+                if (File.Exists(thumbPath))
+                {
+                    return File.OpenRead(thumbPath);
+                }
+            }
+        }
+        catch
+        {
+            // Ignore file system errors
+        }
+
+        // Log failure for debugging
+        var availableResources = type.Assembly.GetManifestResourceNames();
+        var logger = Microsoft.Extensions.Logging.LoggerFactory.Create(builder => { }).CreateLogger<Plugin>();
+        logger.LogWarning(
+            "Failed to load thumb image from both embedded resource and file system. Looking for: {ResourceName}. Available resources: {Resources}",
+            resourceName,
+            string.Join(", ", availableResources));
+
+        return null;
     }
 
     private static PluginPageInfo CreateStatic(string name) => new()
