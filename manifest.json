@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/andreaspointecker-source/Jellyfin-Plugin/master/Jellyfin.Xtream/icon/CandyTV.png",
     "versions": [
       {
+        "version": "0.0.11",
+        "changelog": "Renamed icon file to CandyTv.png (matching plugin name). Removed meta.json from ZIP - Jellyfin generates it automatically during installation.",
+        "targetAbi": "10.10.7.0",
+        "sourceUrl": "https://github.com/andreaspointecker-source/Jellyfin-Plugin/releases/download/v0.0.11/CandyTv_0.0.11.zip",
+        "checksum": "c7a13f07633c3d3f31e006cc30165820",
+        "timestamp": "2025-10-15T20:45:00Z"
+      },
+      {
         "version": "0.0.10",
         "changelog": "Fixed icon display with correct relative imagePath in meta.json. Changed from GitHub URL to relative path 'thumb.png'.",
         "targetAbi": "10.10.7.0",
