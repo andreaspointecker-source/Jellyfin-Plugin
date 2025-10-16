@@ -210,6 +210,10 @@ const tabs = [
     href: tab('XtreamLiveOverrides'),
     name: 'Optimierungen'
   },
+  {
+    href: tab('XtreamCategories'),
+    name: 'Kategorien'
+  },
 ];
 
 const setTabs = (index) => {

@@ -184,6 +184,8 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
             CreateStatic("XtreamVod.js"),
             CreateStatic("XtreamChannelLists.html"),
             CreateStatic("XtreamChannelLists.js"),
+            CreateStatic("XtreamCategories.html"),
+            CreateStatic("XtreamCategories.js"),
         };
     }
 

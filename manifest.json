@@ -10,6 +10,15 @@
     "imageUrl": "https://raw.githubusercontent.com/andreaspointecker-source/Jellyfin-Plugin/master/Jellyfin.Xtream/icon/CandyTV.png",
     "versions": [
       {
+        "version": "0.0.17",
+        "changelog": "UI Release: Added configuration UI for custom channel categories, TMDB settings, and VOD genre organization. New 'Kategorien' tab in plugin settings with complete category management interface.",
+        "targetAbi": "10.10.7.0",
+        "sourceUrl": "https://github.com/andreaspointecker-source/Jellyfin-Plugin/releases/download/v0.0.17/CandyTv_0.0.17.zip",
+        "checksum": "4dc0bcef1639f0ac901f5d79c26fbdd3",
+        "timestamp": "2025-10-16T18:11:00Z",
+        "image": "CandyTV.png"
+      },
+      {
         "version": "0.0.16",
         "changelog": "Major feature release: Added custom channel categories for Live TV organization, TMDB metadata integration for series with automatic metadata updates, and enhanced configuration options for genre-based VOD categorization.",
         "targetAbi": "10.10.7.0",

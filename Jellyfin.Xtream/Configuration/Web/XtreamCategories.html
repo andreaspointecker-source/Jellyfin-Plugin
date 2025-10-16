@@ -1,0 +1,127 @@
+<div id="XtreamCategoriesPage" data-role="page" class="page type-interior pluginConfigurationPage withTabs"
+  data-require="emby-input,emby-button" data-controller="__plugin/XtreamCategories.js">
+  <div data-role="content">
+    <div class="content-primary">
+      <form id="XtreamCategoriesForm">
+        <div class="sectionTitleContainer flex align-items-center">
+          <h2 class="sectionTitle">Erweiterte Einstellungen</h2>
+        </div>
+
+        <div class="checkboxContainer checkboxContainer-withDescription">
+          <label>
+            <input is="emby-checkbox" id="UseCustomChannelCategories" name="UseCustomChannelCategories" type="checkbox" />
+            <span>Benutzerdefinierte Sender-Kategorien verwenden</span>
+          </label>
+          <div class="fieldDescription">
+            Aktiviere diese Option, um eigene Kategorien für Live-TV Sender zu erstellen, anstatt die vom Provider bereitgestellten Kategorien zu verwenden.
+          </div>
+        </div>
+
+        <div class="checkboxContainer checkboxContainer-withDescription">
+          <label>
+            <input is="emby-checkbox" id="EnableVodGenreCategories" name="EnableVodGenreCategories" type="checkbox" />
+            <span>VOD nach Genres organisieren</span>
+          </label>
+          <div class="fieldDescription">
+            Automatische Kategorisierung von Video-On-Demand nach Genres.
+          </div>
+        </div>
+
+        <div class="checkboxContainer checkboxContainer-withDescription">
+          <label>
+            <input is="emby-checkbox" id="EnableTmdbForSeries" name="EnableTmdbForSeries" type="checkbox" />
+            <span>TMDB Metadaten für Serien aktivieren</span>
+          </label>
+          <div class="fieldDescription">
+            Automatisches Abrufen von TMDB Metadaten (Beschreibungen, Genres, Bewertungen) für TV-Serien.
+          </div>
+        </div>
+
+        <div class="checkboxContainer checkboxContainer-withDescription">
+          <label>
+            <input is="emby-checkbox" id="EnableAutomaticTmdbUpdate" name="EnableAutomaticTmdbUpdate" type="checkbox" />
+            <span>Automatische TMDB Aktualisierung</span>
+          </label>
+          <div class="fieldDescription">
+            Metadaten werden automatisch aktualisiert, wenn neue Inhalte verfügbar sind.
+          </div>
+        </div>
+
+        <div class="sectionTitleContainer flex align-items-center" id="CustomCategoriesSection" style="margin-top: 2em;">
+          <h2 class="sectionTitle">Benutzerdefinierte Sender-Kategorien</h2>
+          <button is="emby-button" type="button" id="AddCategoryBtn" class="raised button-submit emby-button" style="margin-left: auto;">
+            <span>Neue Kategorie</span>
+          </button>
+        </div>
+
+        <div class="inputContainer">
+          <table class="categories-table" id="CustomCategoriesTable">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Beschreibung</th>
+                <th>Sender</th>
+                <th>Sortierung</th>
+                <th>Aktiv</th>
+                <th>Aktionen</th>
+              </tr>
+            </thead>
+            <tbody id="CategoriesContent">
+              <!-- Categories will be populated here -->
+            </tbody>
+          </table>
+        </div>
+
+        <div style="margin-top: 2em;">
+          <button is="emby-button" type="submit" class="raised button-submit block emby-button">
+            <span>Speichern</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Category Edit Modal -->
+<div id="CategoryEditDialog" data-role="dialog" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:var(--emby-bg); padding:2em; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.5); z-index:1000; min-width:500px;">
+  <h2 id="DialogTitle">Kategorie bearbeiten</h2>
+  <form id="CategoryEditForm">
+    <div class="inputContainer">
+      <label class="inputLabel" for="CategoryName">Name *</label>
+      <input is="emby-input" id="CategoryName" name="CategoryName" type="text" required />
+    </div>
+    <div class="inputContainer">
+      <label class="inputLabel" for="CategoryDescription">Beschreibung</label>
+      <input is="emby-input" id="CategoryDescription" name="CategoryDescription" type="text" />
+    </div>
+    <div class="inputContainer">
+      <label class="inputLabel" for="CategoryIconUrl">Icon URL</label>
+      <input is="emby-input" id="CategoryIconUrl" name="CategoryIconUrl" type="url" />
+    </div>
+    <div class="inputContainer">
+      <label class="inputLabel" for="CategorySortOrder">Sortierreihenfolge</label>
+      <input is="emby-input" id="CategorySortOrder" name="CategorySortOrder" type="number" value="0" />
+    </div>
+    <div class="checkboxContainer">
+      <label>
+        <input is="emby-checkbox" id="CategoryIsEnabled" name="CategoryIsEnabled" type="checkbox" checked />
+        <span>Kategorie aktiviert</span>
+      </label>
+    </div>
+    <div class="inputContainer">
+      <label class="inputLabel">Sender auswählen</label>
+      <div id="ChannelSelectionContainer" style="max-height:200px; overflow-y:auto; border:1px solid var(--emby-input-border); padding:1em; border-radius:4px;">
+        <!-- Channels will be populated here -->
+      </div>
+    </div>
+    <div style="margin-top: 1em; display:flex; gap:1em;">
+      <button is="emby-button" type="submit" class="raised button-submit emby-button">
+        <span>Speichern</span>
+      </button>
+      <button is="emby-button" type="button" id="CancelCategoryBtn" class="raised emby-button">
+        <span>Abbrechen</span>
+      </button>
+    </div>
+  </form>
+</div>
+<div id="DialogBackdrop" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.7); z-index:999;"></div>
