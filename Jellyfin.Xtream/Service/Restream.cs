@@ -76,8 +76,24 @@ public class Restream : ILiveStream, IDirectStreamProvider, IDisposable
 
         _url = MediaSource.Path;
         string path = $"/LiveTv/LiveStreamFiles/{UniqueId}/stream.ts";
-        MediaSource.Path = appHost.GetSmartApiUrl(IPAddress.Any) + path;
-        MediaSource.EncoderPath = appHost.GetApiUrlForLocalAccess() + path;
+
+        // Ensure URLs have http:// prefix
+        string smartApiUrl = appHost.GetSmartApiUrl(IPAddress.Any);
+        if (!smartApiUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+            !smartApiUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            smartApiUrl = "http://" + smartApiUrl;
+        }
+
+        string localApiUrl = appHost.GetApiUrlForLocalAccess();
+        if (!localApiUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+            !localApiUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            localApiUrl = "http://" + localApiUrl;
+        }
+
+        MediaSource.Path = smartApiUrl + path;
+        MediaSource.EncoderPath = localApiUrl + path;
         MediaSource.Protocol = MediaProtocol.Http;
     }
 
