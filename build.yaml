@@ -1,7 +1,7 @@
 ---
 name: "CandyTv"
 guid: "5d774c35-8567-46d3-a950-9bb8227a0c5d"
-version: "0.0.14"
+version: "0.0.15"
 targetAbi: "10.10.7.0"
 framework: "net8.0"
 overview: "Stream content from an Xtream-compatible server."
@@ -13,4 +13,4 @@ image: "CandyTV.png"
 artifacts:
   - "CandyTv.dll"
 changelog: >
-  Fixed icon display by adding image property to build.yaml and manifest. Icon file CandyTV.png included in package and properly referenced.
+  Fixed live stream playback by adding http:// prefix to stream URLs. Resolved ffprobe "No such file or directory" error.
