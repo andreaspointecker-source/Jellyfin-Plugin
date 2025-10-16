@@ -124,5 +124,30 @@ public class PluginConfiguration : BasePluginConfiguration
     /// Gets or sets the thumbnail cache retention days.
     /// </summary>
     public int ThumbnailCacheRetentionDays { get; set; } = 30;
+
+    /// <summary>
+    /// Gets or sets the custom channel categories for Live TV grouping.
+    /// </summary>
+    public Collection<CustomChannelCategory> CustomChannelCategories { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets a value indicating whether to use custom channel categories instead of provider categories.
+    /// </summary>
+    public bool UseCustomChannelCategories { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether VOD should be automatically organized by genres.
+    /// </summary>
+    public bool EnableVodGenreCategories { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether to automatically update TMDB metadata for VOD.
+    /// </summary>
+    public bool EnableAutomaticTmdbUpdate { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether to enable TMDB metadata for series.
+    /// </summary>
+    public bool EnableTmdbForSeries { get; set; } = true;
 }
 #pragma warning restore CA2227

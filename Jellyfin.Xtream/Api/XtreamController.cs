@@ -458,4 +458,212 @@ public class XtreamController : ControllerBase
         var dataPath = Plugin.Instance.DataFolderPath;
         return Path.Combine(dataPath, "thumbnails");
     }
+
+    /// <summary>
+    /// Get all custom channel categories.
+    /// </summary>
+    /// <returns>List of custom channel categories.</returns>
+    [Authorize(Policy = "RequiresElevation")]
+    [HttpGet("CustomChannelCategories")]
+    public ActionResult<IEnumerable<CustomChannelCategoryResponse>> GetCustomChannelCategories()
+    {
+        try
+        {
+            var config = Plugin.Instance.Configuration;
+            var categories = config.CustomChannelCategories.Select(c => new CustomChannelCategoryResponse
+            {
+                Id = c.Id,
+                Name = c.Name,
+                Description = c.Description,
+                ChannelIds = c.ChannelIds,
+                ChannelCount = c.ChannelIds.Count,
+                SortOrder = c.SortOrder,
+                IsEnabled = c.IsEnabled,
+                IconUrl = c.IconUrl,
+                CreatedDate = c.CreatedDate,
+                ModifiedDate = c.ModifiedDate,
+            }).OrderBy(c => c.SortOrder).ToList();
+
+            return Ok(categories);
+        }
+        catch (Exception ex)
+        {
+            return Ok(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Get a specific custom channel category by ID.
+    /// </summary>
+    /// <param name="id">The category ID.</param>
+    /// <returns>The custom channel category.</returns>
+    [Authorize(Policy = "RequiresElevation")]
+    [HttpGet("CustomChannelCategories/{id}")]
+    public ActionResult<CustomChannelCategoryResponse> GetCustomChannelCategory(Guid id)
+    {
+        try
+        {
+            var config = Plugin.Instance.Configuration;
+            var category = config.CustomChannelCategories.FirstOrDefault(c => c.Id == id);
+
+            if (category == null)
+            {
+                return NotFound(new { error = $"Category with ID {id} not found" });
+            }
+
+            var response = new CustomChannelCategoryResponse
+            {
+                Id = category.Id,
+                Name = category.Name,
+                Description = category.Description,
+                ChannelIds = category.ChannelIds,
+                ChannelCount = category.ChannelIds.Count,
+                SortOrder = category.SortOrder,
+                IsEnabled = category.IsEnabled,
+                IconUrl = category.IconUrl,
+                CreatedDate = category.CreatedDate,
+                ModifiedDate = category.ModifiedDate,
+            };
+
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            return Ok(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Create a new custom channel category.
+    /// </summary>
+    /// <param name="request">The category creation request.</param>
+    /// <returns>The created category.</returns>
+    [Authorize(Policy = "RequiresElevation")]
+    [HttpPost("CustomChannelCategories")]
+    public ActionResult<CustomChannelCategoryResponse> CreateCustomChannelCategory([FromBody] CustomChannelCategoryRequest request)
+    {
+        try
+        {
+            var config = Plugin.Instance.Configuration;
+            var now = DateTime.UtcNow;
+
+            var category = new CustomChannelCategory
+            {
+                Id = Guid.NewGuid(),
+                Name = request.Name,
+                Description = request.Description,
+                ChannelIds = request.ChannelIds,
+                SortOrder = request.SortOrder,
+                IsEnabled = request.IsEnabled,
+                IconUrl = request.IconUrl,
+                CreatedDate = now,
+                ModifiedDate = now,
+            };
+
+            config.CustomChannelCategories.Add(category);
+            Plugin.Instance.UpdateConfiguration(config);
+
+            var response = new CustomChannelCategoryResponse
+            {
+                Id = category.Id,
+                Name = category.Name,
+                Description = category.Description,
+                ChannelIds = category.ChannelIds,
+                ChannelCount = category.ChannelIds.Count,
+                SortOrder = category.SortOrder,
+                IsEnabled = category.IsEnabled,
+                IconUrl = category.IconUrl,
+                CreatedDate = category.CreatedDate,
+                ModifiedDate = category.ModifiedDate,
+            };
+
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            return Ok(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Update an existing custom channel category.
+    /// </summary>
+    /// <param name="id">The category ID.</param>
+    /// <param name="request">The category update request.</param>
+    /// <returns>The updated category.</returns>
+    [Authorize(Policy = "RequiresElevation")]
+    [HttpPut("CustomChannelCategories/{id}")]
+    public ActionResult<CustomChannelCategoryResponse> UpdateCustomChannelCategory(Guid id, [FromBody] CustomChannelCategoryRequest request)
+    {
+        try
+        {
+            var config = Plugin.Instance.Configuration;
+            var category = config.CustomChannelCategories.FirstOrDefault(c => c.Id == id);
+
+            if (category == null)
+            {
+                return NotFound(new { error = $"Category with ID {id} not found" });
+            }
+
+            category.Name = request.Name;
+            category.Description = request.Description;
+            category.ChannelIds = request.ChannelIds;
+            category.SortOrder = request.SortOrder;
+            category.IsEnabled = request.IsEnabled;
+            category.IconUrl = request.IconUrl;
+            category.ModifiedDate = DateTime.UtcNow;
+
+            Plugin.Instance.UpdateConfiguration(config);
+
+            var response = new CustomChannelCategoryResponse
+            {
+                Id = category.Id,
+                Name = category.Name,
+                Description = category.Description,
+                ChannelIds = category.ChannelIds,
+                ChannelCount = category.ChannelIds.Count,
+                SortOrder = category.SortOrder,
+                IsEnabled = category.IsEnabled,
+                IconUrl = category.IconUrl,
+                CreatedDate = category.CreatedDate,
+                ModifiedDate = category.ModifiedDate,
+            };
+
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            return Ok(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Delete a custom channel category.
+    /// </summary>
+    /// <param name="id">The category ID.</param>
+    /// <returns>Success message.</returns>
+    [Authorize(Policy = "RequiresElevation")]
+    [HttpDelete("CustomChannelCategories/{id}")]
+    public ActionResult<object> DeleteCustomChannelCategory(Guid id)
+    {
+        try
+        {
+            var config = Plugin.Instance.Configuration;
+            var category = config.CustomChannelCategories.FirstOrDefault(c => c.Id == id);
+
+            if (category == null)
+            {
+                return NotFound(new { error = $"Category with ID {id} not found" });
+            }
+
+            config.CustomChannelCategories.Remove(category);
+            Plugin.Instance.UpdateConfiguration(config);
+
+            return Ok(new { success = true, message = $"Category '{category.Name}' deleted successfully" });
+        }
+        catch (Exception ex)
+        {
+            return Ok(new { success = false, error = ex.Message });
+        }
+    }
 }

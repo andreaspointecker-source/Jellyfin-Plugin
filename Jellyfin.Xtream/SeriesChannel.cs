@@ -16,10 +16,12 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Xtream.Client.Models;
+using Jellyfin.Xtream.Providers;
 using Jellyfin.Xtream.Service;
 using MediaBrowser.Controller.Channels;
 using MediaBrowser.Controller.Entities;
@@ -141,6 +143,7 @@ public class SeriesChannel(ILogger<SeriesChannel> logger, ThumbnailCacheService 
             People = GetPeople(series.Cast),
             Tags = new List<string>(parsedName.Tags),
             Type = ChannelItemType.Folder,
+            ProviderIds = { { XtreamSeriesProvider.ProviderName, series.SeriesId.ToString(CultureInfo.InvariantCulture) } },
         };
     }
 
