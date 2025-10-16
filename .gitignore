@@ -4,3 +4,15 @@ obj/
 .idea/
 .vscode/
 artifacts
+
+# Build artifacts
+*.zip
+!CandyTv_*.zip
+
+# Temporary files
+*.ps1
+*.log
+
+# OS files
+Thumbs.db
+.DS_Store
