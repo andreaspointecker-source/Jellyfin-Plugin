@@ -11,11 +11,11 @@
     "versions": [
       {
         "version": "0.0.14",
-        "changelog": "Version bump to 0.0.14. Image property already configured in build.yaml pointing to CandyTV.png.",
+        "changelog": "Version bump to 0.0.14. Complete package with all dependencies and CandyTV.png icon.",
         "targetAbi": "10.10.7.0",
         "sourceUrl": "https://github.com/andreaspointecker-source/Jellyfin-Plugin/releases/download/v0.0.14/CandyTv_0.0.14.zip",
-        "checksum": "",
-        "timestamp": "2025-10-15T22:00:00Z",
+        "checksum": "a49322eba574aa392c6e50063d8eaad7",
+        "timestamp": "2025-10-16T14:00:00Z",
         "image": "CandyTV.png"
       },
       {
