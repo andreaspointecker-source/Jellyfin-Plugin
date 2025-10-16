@@ -14,8 +14,8 @@
         "changelog": "Major feature release: Added custom channel categories for Live TV organization, TMDB metadata integration for series with automatic metadata updates, and enhanced configuration options for genre-based VOD categorization.",
         "targetAbi": "10.10.7.0",
         "sourceUrl": "https://github.com/andreaspointecker-source/Jellyfin-Plugin/releases/download/v0.0.16/CandyTv_0.0.16.zip",
-        "checksum": "1a04d1706c3ee77bbb2f1bd104a6df71",
-        "timestamp": "2025-10-16T17:31:00Z",
+        "checksum": "aa764f84e1fa1797738fd4638c89b4af",
+        "timestamp": "2025-10-16T17:49:00Z",
         "image": "CandyTV.png"
       },
       {
