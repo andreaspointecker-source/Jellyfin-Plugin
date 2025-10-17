@@ -48,7 +48,7 @@ export default function (view) {
         enableAutomaticTmdbUpdate.checked = config.EnableAutomaticTmdbUpdate !== false; // default true
 
         // Load channels for selection
-        return Xtream.fetchJson('Xtream/LiveChannels').then((channels) => {
+        return Xtream.fetchJson('Xtream/LiveTv').then((channels) => {
           allChannels = channels;
           renderCategories();
           Dashboard.hideLoadingMsg();

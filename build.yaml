@@ -1,7 +1,7 @@
 ---
 name: "CandyTv"
 guid: "5d774c35-8567-46d3-a950-9bb8227a0c5d"
-version: "0.0.17"
+version: "0.0.18"
 targetAbi: "10.10.7.0"
 framework: "net8.0"
 overview: "Stream content from an Xtream-compatible server."
@@ -13,4 +13,4 @@ image: "CandyTV.png"
 artifacts:
   - "CandyTv.dll"
 changelog: >
-  UI Release: Added configuration UI for custom channel categories, TMDB settings, and VOD genre organization. New "Kategorien" tab in plugin settings with complete category management interface.
+  Bugfix: Fixed API endpoint reference in XtreamCategories.js (LiveChannels -> LiveTv). Category management UI now fully functional.
