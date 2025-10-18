@@ -139,6 +139,9 @@ public class Restream : ILiveStream, IDirectStreamProvider, IDisposable
             response = await _httpClientFactory.CreateClient(NamedClient.Default)
                 .GetAsync(_url, HttpCompletionOption.ResponseHeadersRead, openCancellationToken)
                 .ConfigureAwait(true);
+            _logger.LogInformation("Provider responded {StatusCode} for channel {ChannelId}", response.StatusCode, channelId);
+
+            response.EnsureSuccessStatusCode();
             _logger.LogDebug("Stream for channel {ChannelId} using url {Url}", channelId, _url);
 
             // Handle a manual redirect in the case of a HTTPS to HTTP downgrade.
@@ -153,6 +156,9 @@ public class Restream : ILiveStream, IDirectStreamProvider, IDisposable
                 response = await _httpClientFactory.CreateClient(NamedClient.Default)
                     .GetAsync(redirectUrl, HttpCompletionOption.ResponseHeadersRead, openCancellationToken)
                     .ConfigureAwait(true);
+                _logger.LogInformation("Provider redirected stream {ChannelId} responded {StatusCode}", channelId, response.StatusCode);
+
+                response.EnsureSuccessStatusCode();
             }
 
             // Extract stream - after this, we own the stream and response can be disposed

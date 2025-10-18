@@ -1,9 +1,9 @@
-# Release Instructions for v0.0.24
+# Release Instructions for v0.0.25
 
 ## ✅ Was bereits erledigt ist:
 
 1. ✅ Code committed: `ab507c2`
-2. ✅ Tag erstellt: `v0.0.24`
+2. ✅ Tag erstellt: `v0.0.25`
 3. ✅ Gepusht zu GitHub: master + tag
 
 **GitHub Repository**: https://github.com/andreaspointecker-source/Jellyfin-Plugin
@@ -19,37 +19,37 @@
    https://github.com/andreaspointecker-source/Jellyfin-Plugin/releases/new
    ```
 
-2. **Wähle Tag**: `v0.0.24` (sollte bereits ausgewählt sein)
+2. **Wähle Tag**: `v0.0.25` (sollte bereits ausgewählt sein)
 
 3. **Release Title**:
    ```
-   v0.0.24 - Performance & Stability Release
+   v0.0.25 - Performance & Stability Release
    ```
 
 4. **Description**:
-   - Kopiere den Inhalt aus `docs/RELEASE_NOTES_v0.0.24.md`
+   - Kopiere den Inhalt aus `docs/RELEASE_NOTES_v0.0.25.md`
    - Oder nutze diese Kurzversion:
 
-   ```markdown
-## ?? Live Channel Repair
+```markdown
+## 🔧 Direct Source Live Fix
 
 ### Highlights
-- **Correct Xtream Paths**: Live streams now include `/live/{user}/{pass}/{id}.ext` before restreaming.
-- **Stable Playback**: Restream no longer shuts down immediately after HEAD/RANGE requests.
-- **Defaults Included**: Missing container extensions fall back to `.ts` for compatibility.
+- **Reuse Provider URLs**: Live streams now reuse Xtream's `direct_source` value (credentials & query parameters included).
+- **Better Diagnostics**: Upstream HTTP statuses are logged to help trace provider-side issues.
+- **Restream Stable**: Buffer stays active without premature closure.
 
 ### Notes
-- Restart Jellyfin after installing 0.0.24.
+- Restart Jellyfin after installing 0.0.25.
 - Play a live channel and confirm it stays running.
 
-**Full Changelog**: https://github.com/andreaspointecker-source/Jellyfin-Plugin/compare/v0.0.23...v0.0.24
+**Full Changelog**: https://github.com/andreaspointecker-source/Jellyfin-Plugin/compare/v0.0.24...v0.0.25
 
-See [CHANGELOG.md](CHANGELOG.md) and [Release Notes](docs/RELEASE_NOTES_v0.0.24.md) for details.
+See [CHANGELOG.md](CHANGELOG.md) and [Release Notes](docs/RELEASE_NOTES_v0.0.25.md) for details.
 ```
 
 5. **Upload DLL**:
    - Drag & drop: `Jellyfin.Xtream\bin\Release\net8.0\CandyTv.dll`
-   - Rename to: `CandyTv-0.0.24.dll` (optional)
+   - Rename to: `CandyTv-0.0.25.dll` (optional)
 
 6. **Publish Release** ✅
 
@@ -64,10 +64,10 @@ cd "C:\Users\Anwender\Programme\Jellyfin.Xtream-original"
 gh auth login
 
 # Release erstellen
-gh release create v0.0.24 \
+gh release create v0.0.25 \
   "Jellyfin.Xtream/bin/Release/net8.0/CandyTv.dll#CandyTv-0.0.21.dll" \
-  --title "v0.0.24 - Performance & Stability Release" \
-  --notes-file "docs/RELEASE_NOTES_v0.0.24.md"
+  --title "v0.0.25 - Performance & Stability Release" \
+  --notes-file "docs/RELEASE_NOTES_v0.0.25.md"
 ```
 
 ---
@@ -77,7 +77,7 @@ gh release create v0.0.24 \
 - [ ] Release auf GitHub veröffentlicht
 - [ ] DLL hochgeladen und herunterladbar
 - [ ] Release Notes korrekt angezeigt
-- [ ] Tag `v0.0.24` sichtbar
+- [ ] Tag `v0.0.25` sichtbar
 - [ ] Download-Link testen
 
 ---
@@ -86,7 +86,7 @@ gh release create v0.0.24 \
 
 - **Repository**: https://github.com/andreaspointecker-source/Jellyfin-Plugin
 - **Releases**: https://github.com/andreaspointecker-source/Jellyfin-Plugin/releases
-- **Tag v0.0.24**: https://github.com/andreaspointecker-source/Jellyfin-Plugin/releases/tag/v0.0.24
+- **Tag v0.0.25**: https://github.com/andreaspointecker-source/Jellyfin-Plugin/releases/tag/v0.0.25
 - **Commit**: https://github.com/andreaspointecker-source/Jellyfin-Plugin/commit/ab507c2
 
 ---
@@ -149,6 +149,7 @@ dotnet build -c Release
 
 **Status**: ✅ Code gepusht, bereit für Release-Erstellung!
 **Nächster Schritt**: GitHub Web UI → Create Release
+
 
 
 

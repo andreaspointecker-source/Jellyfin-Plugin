@@ -14,6 +14,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -37,6 +38,8 @@ namespace Jellyfin.Xtream.Service;
 /// </summary>
 public partial class StreamService
 {
+    private readonly ConcurrentDictionary<int, StreamInfo> _liveStreamLookup = new();
+
     /// <summary>
     /// The id prefix for VOD category channel items.
     /// </summary>
@@ -160,6 +163,12 @@ public partial class StreamService
         using XtreamClient client = new XtreamClient();
 
         IEnumerable<StreamInfo> streams = await client.GetLiveStreamsAsync(Plugin.Instance.Creds, cancellationToken).ConfigureAwait(false);
+
+        foreach (StreamInfo stream in streams)
+        {
+            _liveStreamLookup[stream.StreamId] = stream;
+        }
+
         return streams.Where((StreamInfo channel) => channel.CategoryId.HasValue && IsConfigured(config.LiveTv, channel.CategoryId.Value, channel.StreamId));
     }
 
@@ -405,10 +414,26 @@ public partial class StreamService
         };
 
         PluginConfiguration config = Plugin.Instance.Configuration;
-        string uri = $"{config.BaseUrl}{prefix}/{config.Username}/{config.Password}/{id}";
-        if (!string.IsNullOrEmpty(extension))
+        string uri;
+
+        if (type == StreamType.Live &&
+            _liveStreamLookup.TryGetValue(id, out StreamInfo? streamInfo) &&
+            !string.IsNullOrWhiteSpace(streamInfo.DirectSource))
         {
-            uri += $".{extension}";
+            uri = streamInfo.DirectSource;
+
+            if (string.IsNullOrWhiteSpace(extension) && !string.IsNullOrWhiteSpace(streamInfo.ContainerExtension))
+            {
+                extension = streamInfo.ContainerExtension;
+            }
+        }
+        else
+        {
+            uri = $"{config.BaseUrl}{prefix}/{config.Username}/{config.Password}/{id}";
+            if (!string.IsNullOrWhiteSpace(extension))
+            {
+                uri += $".{extension}";
+            }
         }
 
         if (type == StreamType.CatchUp)

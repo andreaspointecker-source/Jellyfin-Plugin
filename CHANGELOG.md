@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.0.25] - 2025-10-18
+
+### Fixed
+- Live streams now reuse Xtream’s `direct_source` URL (including any provider-specific parameters) and log upstream HTTP statuses, preventing the immediate restream shutdowns still observed in 0.0.24.
+
+### Compatibility
+- Works with providers that require customised credentials, query strings, or bitrate parameters in the original URL.
+
+---
+
 ## [0.0.24] - 2025-10-18
 
 ### Fixed
