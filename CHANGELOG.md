@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.0.22] - 2025-10-18
+
+### Fixed
+- Removed the plugin-specific memory cache size limit so Jellyfin’s shared cache no longer throws `Cache entry must specify a value for Size` when TMDb or other metadata providers populate entries without explicit sizing.
+
+### Compatibility
+- CandyTv now defers to the host server’s default `IMemoryCache` configuration, eliminating cross-plugin conflicts during metadata and artwork retrieval.
+
+---
+
 ## [0.0.21] - 2025-01-18
 
 ### Added

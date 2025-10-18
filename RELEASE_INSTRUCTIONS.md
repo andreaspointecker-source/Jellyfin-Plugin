@@ -1,9 +1,9 @@
-# Release Instructions for v0.0.21
+# Release Instructions for v0.0.22
 
 ## ✅ Was bereits erledigt ist:
 
 1. ✅ Code committed: `ab507c2`
-2. ✅ Tag erstellt: `v0.0.21`
+2. ✅ Tag erstellt: `v0.0.22`
 3. ✅ Gepusht zu GitHub: master + tag
 
 **GitHub Repository**: https://github.com/andreaspointecker-source/Jellyfin-Plugin
@@ -19,38 +19,37 @@
    https://github.com/andreaspointecker-source/Jellyfin-Plugin/releases/new
    ```
 
-2. **Wähle Tag**: `v0.0.21` (sollte bereits ausgewählt sein)
+2. **Wähle Tag**: `v0.0.22` (sollte bereits ausgewählt sein)
 
 3. **Release Title**:
    ```
-   v0.0.21 - Performance & Stability Release
+   v0.0.22 - Performance & Stability Release
    ```
 
 4. **Description**:
-   - Kopiere den Inhalt aus `docs/RELEASE_NOTES_v0.0.21.md`
+   - Kopiere den Inhalt aus `docs/RELEASE_NOTES_v0.0.22.md`
    - Oder nutze diese Kurzversion:
 
    ```markdown
-## ?? Single Connection Proxy Update
+   ## 🔧 Cache Compatibility Hotfix
 
-### Highlights
-- **One Session Enforcement**: Live, VOD, series, and catch-up reuse the same Xtream provider slot.
-- **Secure URLs**: Playback now hits `/Xtream/Stream/{token}` so credentials never leave Jellyfin.
-- **Unified Streaming**: Restream acquires the proxy lease to prevent parallel channel playback.
+   ### Highlights
+   - **No More TMDb Failures**: Removing CandyTv’s cache size limit stops `Cache entry must specify a value for Size`.
+   - **Plays Nice With Others**: Jellyfin’s shared `IMemoryCache` is used unchanged, so other plugins keep working.
+   - **Zero Behaviour Change**: CandyTv’s own EPG/thumbnail caches still track stats and clean themselves.
 
-### Dev Notes
-- Added `StreamTokenService` for token issuance and provider semaphore control.
-- Introduced `/Xtream/Stream/{token}` endpoint plus streaming proxy result.
-- Updated `StreamService` to emit proxied URLs for all non-restream media.
+   ### Notes
+   - Restart Jellyfin after installing 0.0.22.
+   - Run a metadata refresh or wait for the next scheduled scan to verify clean logs.
 
-**Full Changelog**: https://github.com/andreaspointecker-source/Jellyfin-Plugin/compare/v0.0.20...v0.0.21
+   **Full Changelog**: https://github.com/andreaspointecker-source/Jellyfin-Plugin/compare/v0.0.21...v0.0.22
 
-See [CHANGELOG.md](CHANGELOG.md) and [Release Notes](docs/RELEASE_NOTES_v0.0.21.md) for details.
-```
+   See [CHANGELOG.md](CHANGELOG.md) and [Release Notes](docs/RELEASE_NOTES_v0.0.22.md) for details.
+   ```
 
 5. **Upload DLL**:
    - Drag & drop: `Jellyfin.Xtream\bin\Release\net8.0\CandyTv.dll`
-   - Rename to: `CandyTv-0.0.21.dll` (optional)
+   - Rename to: `CandyTv-0.0.22.dll` (optional)
 
 6. **Publish Release** ✅
 
@@ -65,10 +64,10 @@ cd "C:\Users\Anwender\Programme\Jellyfin.Xtream-original"
 gh auth login
 
 # Release erstellen
-gh release create v0.0.21 \
+gh release create v0.0.22 \
   "Jellyfin.Xtream/bin/Release/net8.0/CandyTv.dll#CandyTv-0.0.21.dll" \
-  --title "v0.0.21 - Performance & Stability Release" \
-  --notes-file "docs/RELEASE_NOTES_v0.0.21.md"
+  --title "v0.0.22 - Performance & Stability Release" \
+  --notes-file "docs/RELEASE_NOTES_v0.0.22.md"
 ```
 
 ---
@@ -78,7 +77,7 @@ gh release create v0.0.21 \
 - [ ] Release auf GitHub veröffentlicht
 - [ ] DLL hochgeladen und herunterladbar
 - [ ] Release Notes korrekt angezeigt
-- [ ] Tag `v0.0.21` sichtbar
+- [ ] Tag `v0.0.22` sichtbar
 - [ ] Download-Link testen
 
 ---
@@ -87,7 +86,7 @@ gh release create v0.0.21 \
 
 - **Repository**: https://github.com/andreaspointecker-source/Jellyfin-Plugin
 - **Releases**: https://github.com/andreaspointecker-source/Jellyfin-Plugin/releases
-- **Tag v0.0.21**: https://github.com/andreaspointecker-source/Jellyfin-Plugin/releases/tag/v0.0.21
+- **Tag v0.0.22**: https://github.com/andreaspointecker-source/Jellyfin-Plugin/releases/tag/v0.0.22
 - **Commit**: https://github.com/andreaspointecker-source/Jellyfin-Plugin/commit/ab507c2
 
 ---
@@ -150,4 +149,5 @@ dotnet build -c Release
 
 **Status**: ✅ Code gepusht, bereit für Release-Erstellung!
 **Nächster Schritt**: GitHub Web UI → Create Release
+
 

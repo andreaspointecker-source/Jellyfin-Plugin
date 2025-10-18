@@ -10,6 +10,15 @@
     "imageUrl": "https://raw.githubusercontent.com/andreaspointecker-source/Jellyfin-Plugin/master/Jellyfin.Xtream/icon/CandyTV.png",
     "versions": [
       {
+        "version": "0.0.22",
+        "changelog": "Hotfix: rely on Jellyfin’s default memory cache configuration to avoid cross-plugin errors such as “Cache entry must specify a value for Size” when TMDb image lookups run alongside CandyTv.",
+        "targetAbi": "10.10.7.0",
+        "sourceUrl": "https://github.com/andreaspointecker-source/Jellyfin-Plugin/releases/download/v0.0.22/CandyTv_0.0.22.zip",
+        "checksum": "0cb418b4d3a319008189355dac348e43",
+        "timestamp": "2025-10-18T21:45:00Z",
+        "image": "CandyTV.png"
+      },
+      {
         "version": "0.0.21",
         "changelog": "Adds token-based stream proxying with a global provider lease so only one Xtream session is ever opened. All VOD/series/catch-up URLs now point to /Xtream/Stream/{token}, removing credentials from clients and preventing parallel connections.",
         "targetAbi": "10.10.7.0",

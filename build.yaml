@@ -1,7 +1,7 @@
 ---
 name: "CandyTv"
 guid: "5d774c35-8567-46d3-a950-9bb8227a0c5d"
-version: "0.0.21"
+version: "0.0.22"
 targetAbi: "10.10.7.0"
 framework: "net8.0"
 overview: "Stream content from an Xtream-compatible server."
@@ -13,4 +13,4 @@ image: "CandyTV.png"
 artifacts:
   - "CandyTv.dll"
 changelog: >
-  Introduced single-connection stream proxy with token-based URLs. All VOD/series/catch-up playback now flows through a Jellyfin endpoint that multiplexes requests and enforces the Xtream “1 active session” limit. Live restreaming acquires the same provider lease, preventing parallel connections across channels. Adds /Xtream/Stream/{token} endpoint plus transient tokens, ensuring credentials never leave the server.
+  Fixed compatibility issues with Jellyfin’s shared metadata cache. The plugin now relies on the host’s default memory cache configuration so third-party providers (e.g. TMDb image lookups) no longer throw “Cache entry must specify a value for Size” errors while using CandyTv alongside other plugins.
