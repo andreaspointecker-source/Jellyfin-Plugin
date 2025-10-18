@@ -29,16 +29,20 @@ namespace Jellyfin.Xtream.Service;
 /// <summary>
 /// Service for caching thumbnail images from remote URLs.
 /// </summary>
-public class ThumbnailCacheService
+public sealed class ThumbnailCacheService : IDisposable
 {
     private static int _cachedImages = 0;
     private static int _cacheRequests = 0;
+    private static long _totalCacheSize = 0;
+    private static int _totalCachedFiles = 0;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<ThumbnailCacheService> _logger;
     private readonly ConcurrentDictionary<string, Task<string?>> _inProgressDownloads = new();
     private readonly object _initLock = new();
     private string? _cacheDirectory;
     private bool _cleanupTaskStarted = false;
+    private CancellationTokenSource? _cleanupCancellation;
+    private Task? _cleanupTask;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ThumbnailCacheService"/> class.
@@ -78,6 +82,16 @@ public class ThumbnailCacheService
     }
 
     /// <summary>
+    /// Gets the total cache size in bytes.
+    /// </summary>
+    public static long TotalCacheSize => _totalCacheSize;
+
+    /// <summary>
+    /// Gets the total number of cached files.
+    /// </summary>
+    public static int TotalCachedFiles => _totalCachedFiles;
+
+    /// <summary>
     /// Initializes the cache directory. Called lazily on first use.
     /// </summary>
     private void EnsureInitialized()
@@ -108,7 +122,8 @@ public class ThumbnailCacheService
                 if (!_cleanupTaskStarted)
                 {
                     _cleanupTaskStarted = true;
-                    Task.Run(() => CleanupOldFilesAsync());
+                    _cleanupCancellation = new CancellationTokenSource();
+                    _cleanupTask = Task.Run(() => CleanupOldFilesAsync(_cleanupCancellation.Token));
                 }
             }
             catch (Exception ex)
@@ -272,79 +287,219 @@ public class ThumbnailCacheService
     /// <summary>
     /// Cleans up old cached files based on retention policy.
     /// </summary>
-    private async Task CleanupOldFilesAsync()
+    /// <param name="cancellationToken">Cancellation token for graceful shutdown.</param>
+    private async Task CleanupOldFilesAsync(CancellationToken cancellationToken)
     {
         try
         {
-            await Task.Delay(TimeSpan.FromMinutes(5)).ConfigureAwait(false); // Wait 5 minutes after startup
+            // Wait until maintenance window on first run
+            await WaitForMaintenanceWindowAsync(cancellationToken).ConfigureAwait(false);
 
-            while (true)
+            while (!cancellationToken.IsCancellationRequested)
             {
                 try
                 {
-                    EnsureInitialized();
-
-                    if (_cacheDirectory != null && Directory.Exists(_cacheDirectory))
-                    {
-                        var retentionDays = Plugin.Instance.Configuration.ThumbnailCacheRetentionDays;
-                        var cutoffDate = DateTime.UtcNow.AddDays(-retentionDays);
-
-                        var files = Directory.GetFiles(_cacheDirectory, "*", SearchOption.AllDirectories);
-                        int deletedCount = 0;
-
-                        foreach (var file in files)
-                        {
-                            try
-                            {
-                                // Delete files that haven't been accessed in retention period
-                                var lastAccess = File.GetLastAccessTime(file);
-                                if (lastAccess < cutoffDate)
-                                {
-                                    File.Delete(file);
-                                    deletedCount++;
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                _logger.LogWarning(ex, "Failed to delete old cached file: {File}", file);
-                            }
-                        }
-
-                        if (deletedCount > 0)
-                        {
-                            _logger.LogInformation("Cleaned up {Count} old cached thumbnails", deletedCount);
-                        }
-
-                        // Clean up empty subdirectories
-                        var dirs = Directory.GetDirectories(_cacheDirectory, "*", SearchOption.AllDirectories);
-                        foreach (var dir in dirs)
-                        {
-                            try
-                            {
-                                if (!Directory.EnumerateFileSystemEntries(dir).Any())
-                                {
-                                    Directory.Delete(dir);
-                                }
-                            }
-                            catch
-                            {
-                                // Ignore errors when deleting empty directories
-                            }
-                        }
-                    }
+                    PerformCleanupAsync();
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error during thumbnail cache cleanup");
                 }
 
-                // Run cleanup daily
-                await Task.Delay(TimeSpan.FromHours(24)).ConfigureAwait(false);
+                // Wait until next maintenance window
+                await WaitForMaintenanceWindowAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            _logger.LogInformation("Thumbnail cache cleanup task cancelled gracefully");
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("Thumbnail cache cleanup task cancelled");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Thumbnail cache cleanup task stopped unexpectedly");
+        }
+    }
+
+    /// <summary>
+    /// Waits until the next maintenance window starts.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    private async Task WaitForMaintenanceWindowAsync(CancellationToken cancellationToken)
+    {
+        var config = Plugin.Instance.Configuration;
+        var now = DateTime.Now;
+        var startHour = config.MaintenanceStartHour;
+
+        // Calculate next maintenance window start
+        var nextRun = now.Date.AddHours(startHour);
+        if (nextRun <= now)
+        {
+            nextRun = nextRun.AddDays(1);
+        }
+
+        var delay = nextRun - now;
+        _logger.LogDebug("Next thumbnail cache cleanup scheduled at {Time} (in {Hours:F1} hours)", nextRun, delay.TotalHours);
+
+        await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Performs the actual cache cleanup and statistics update.
+    /// </summary>
+    private void PerformCleanupAsync()
+    {
+        EnsureInitialized();
+
+        if (_cacheDirectory == null || !Directory.Exists(_cacheDirectory))
+        {
+            return;
+        }
+
+        var retentionDays = Plugin.Instance.Configuration.ThumbnailCacheRetentionDays;
+        var cutoffDate = DateTime.UtcNow.AddDays(-retentionDays);
+
+        var files = Directory.GetFiles(_cacheDirectory, "*", SearchOption.AllDirectories);
+        int deletedCount = 0;
+        long deletedSize = 0;
+        long totalSize = 0;
+        int remainingFiles = 0;
+
+        foreach (var file in files)
+        {
+            try
+            {
+                var fileInfo = new FileInfo(file);
+                var fileSize = fileInfo.Length;
+
+                // Delete files that haven't been accessed in retention period
+                var lastAccess = File.GetLastAccessTime(file);
+                if (lastAccess < cutoffDate)
+                {
+                    File.Delete(file);
+                    deletedCount++;
+                    deletedSize += fileSize;
+                }
+                else
+                {
+                    totalSize += fileSize;
+                    remainingFiles++;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to process cached file: {File}", file);
+            }
+        }
+
+        // Update statistics
+        Interlocked.Exchange(ref _totalCacheSize, totalSize);
+        Interlocked.Exchange(ref _totalCachedFiles, remainingFiles);
+
+        if (deletedCount > 0)
+        {
+            _logger.LogInformation(
+                "Cleaned up {Count} old cached thumbnails ({Size:F2} MB freed). Cache: {Files} files, {TotalSize:F2} MB",
+                deletedCount,
+                deletedSize / (1024.0 * 1024.0),
+                remainingFiles,
+                totalSize / (1024.0 * 1024.0));
+        }
+        else
+        {
+            _logger.LogDebug("No thumbnails to clean up. Cache: {Files} files, {Size:F2} MB", remainingFiles, totalSize / (1024.0 * 1024.0));
+        }
+
+        // Clean up empty subdirectories
+        var dirs = Directory.GetDirectories(_cacheDirectory, "*", SearchOption.AllDirectories);
+        foreach (var dir in dirs)
+        {
+            try
+            {
+                if (!Directory.EnumerateFileSystemEntries(dir).Any())
+                {
+                    Directory.Delete(dir);
+                }
+            }
+            catch
+            {
+                // Ignore errors when deleting empty directories
+            }
+        }
+    }
+
+    /// <summary>
+    /// Manually triggers a cache cleanup.
+    /// </summary>
+    public void TriggerCleanup()
+    {
+        _logger.LogInformation("Manual thumbnail cache cleanup triggered");
+        PerformCleanupAsync();
+    }
+
+    /// <summary>
+    /// Clears the entire thumbnail cache.
+    /// </summary>
+    public void ClearCache()
+    {
+        EnsureInitialized();
+
+        if (_cacheDirectory == null || !Directory.Exists(_cacheDirectory))
+        {
+            return;
+        }
+
+        try
+        {
+            var files = Directory.GetFiles(_cacheDirectory, "*", SearchOption.AllDirectories);
+            int deletedCount = 0;
+            long deletedSize = 0;
+
+            foreach (var file in files)
+            {
+                try
+                {
+                    var fileSize = new FileInfo(file).Length;
+                    File.Delete(file);
+                    deletedCount++;
+                    deletedSize += fileSize;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to delete cached file: {File}", file);
+                }
+            }
+
+            // Update statistics
+            Interlocked.Exchange(ref _totalCacheSize, 0);
+            Interlocked.Exchange(ref _totalCachedFiles, 0);
+
+            _logger.LogInformation(
+                "Cleared thumbnail cache: {Count} files deleted ({Size:F2} MB freed)",
+                deletedCount,
+                deletedSize / (1024.0 * 1024.0));
+
+            // Clean up empty subdirectories
+            var dirs = Directory.GetDirectories(_cacheDirectory, "*", SearchOption.AllDirectories);
+            foreach (var dir in dirs)
+            {
+                try
+                {
+                    if (!Directory.EnumerateFileSystemEntries(dir).Any())
+                    {
+                        Directory.Delete(dir);
+                    }
+                }
+                catch
+                {
+                    // Ignore errors
+                }
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Thumbnail cache cleanup task stopped");
+            _logger.LogError(ex, "Failed to clear thumbnail cache");
         }
     }
 
@@ -355,5 +510,43 @@ public class ThumbnailCacheService
     {
         Interlocked.Exchange(ref _cachedImages, 0);
         Interlocked.Exchange(ref _cacheRequests, 0);
+    }
+
+    /// <summary>
+    /// Stops the background cleanup task gracefully.
+    /// </summary>
+    public void Shutdown()
+    {
+        if (_cleanupCancellation == null || _cleanupTask == null)
+        {
+            return;
+        }
+
+        _logger.LogInformation("Shutting down thumbnail cache service...");
+
+        try
+        {
+            _cleanupCancellation.Cancel();
+
+            // Wait max 5 seconds for graceful shutdown
+            if (!_cleanupTask.Wait(TimeSpan.FromSeconds(5)))
+            {
+                _logger.LogWarning("Thumbnail cleanup task did not complete within timeout");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during thumbnail cache shutdown");
+        }
+    }
+
+    /// <summary>
+    /// Disposes resources used by the thumbnail cache service.
+    /// </summary>
+    public void Dispose()
+    {
+        Shutdown();
+        _cleanupCancellation?.Dispose();
+        GC.SuppressFinalize(this);
     }
 }

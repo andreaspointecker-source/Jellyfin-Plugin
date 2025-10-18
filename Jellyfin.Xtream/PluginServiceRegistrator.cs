@@ -30,11 +30,22 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
     /// <inheritdoc />
     public void RegisterServices(IServiceCollection serviceCollection, IServerApplicationHost applicationHost)
     {
+        // Configure memory cache with size limits
+        serviceCollection.AddMemoryCache(options =>
+        {
+            // Set maximum cache size to 100,000 items
+            options.SizeLimit = 100000;
+
+            // When limit is reached, compact 25% of cache
+            options.CompactionPercentage = 0.25;
+        });
+
         serviceCollection.AddSingleton<ILiveTvService, LiveTvService>();
         serviceCollection.AddSingleton<IChannel, CatchupChannel>();
         serviceCollection.AddSingleton<IChannel, SeriesChannel>();
         serviceCollection.AddSingleton<IChannel, VodChannel>();
         serviceCollection.AddSingleton<IPreRefreshProvider, XtreamVodProvider>();
         serviceCollection.AddSingleton<ThumbnailCacheService>();
+        serviceCollection.AddSingleton<EpgCacheService>();
     }
 }

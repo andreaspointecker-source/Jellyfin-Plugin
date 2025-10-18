@@ -41,9 +41,9 @@ namespace Jellyfin.Xtream;
 /// <param name="appHost">Instance of the <see cref="IServerApplicationHost"/> interface.</param>
 /// <param name="httpClientFactory">Instance of the <see cref="IHttpClientFactory"/> interface.</param>
 /// <param name="logger">Instance of the <see cref="ILogger"/> interface.</param>
-/// <param name="memoryCache">Instance of the <see cref="IMemoryCache"/> interface.</param>
 /// <param name="thumbnailCache">Instance of the <see cref="ThumbnailCacheService"/> class.</param>
-public class LiveTvService(IServerApplicationHost appHost, IHttpClientFactory httpClientFactory, ILogger<LiveTvService> logger, IMemoryCache memoryCache, ThumbnailCacheService thumbnailCache) : ILiveTvService, ISupportsDirectStreamProvider
+/// <param name="epgCache">Instance of the <see cref="EpgCacheService"/> class.</param>
+public class LiveTvService(IServerApplicationHost appHost, IHttpClientFactory httpClientFactory, ILogger<LiveTvService> logger, ThumbnailCacheService thumbnailCache, EpgCacheService epgCache) : ILiveTvService, ISupportsDirectStreamProvider
 {
     /// <inheritdoc />
     public string Name => "CandyTv Live";
@@ -163,39 +163,8 @@ public class LiveTvService(IServerApplicationHost appHost, IHttpClientFactory ht
             throw new ArgumentException("Unsupported channel");
         }
 
-        string key = $"xtream-epg-{channelId}";
-        ICollection<ProgramInfo>? items = null;
-        if (memoryCache.TryGetValue(key, out ICollection<ProgramInfo>? o))
-        {
-            items = o;
-        }
-        else
-        {
-            items = new List<ProgramInfo>();
-            Plugin plugin = Plugin.Instance;
-            using (XtreamClient client = new XtreamClient())
-            {
-                EpgListings epgs = await client.GetEpgInfoAsync(plugin.Creds, streamId, cancellationToken).ConfigureAwait(false);
-                foreach (EpgInfo epg in epgs.Listings)
-                {
-                    items.Add(new()
-                    {
-                        Id = StreamService.ToGuid(StreamService.EpgPrefix, streamId, epg.Id, 0).ToString(),
-                        ChannelId = channelId,
-                        StartDate = epg.Start,
-                        EndDate = epg.End,
-                        Name = epg.Title,
-                        Overview = epg.Description,
-                    });
-                }
-            }
-
-            memoryCache.Set(key, items, DateTimeOffset.Now.AddMinutes(10));
-        }
-
-        return from epg in items
-               where epg.EndDate >= startDateUtc && epg.StartDate < endDateUtc
-               select epg;
+        // Use new EpgCacheService with adaptive caching and prefetching
+        return await epgCache.GetProgramsAsync(channelId, streamId, startDateUtc, endDateUtc, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />

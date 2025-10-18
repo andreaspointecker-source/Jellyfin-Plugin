@@ -284,6 +284,10 @@ public class XtreamController : ControllerBase
             thumbnailCacheHitRate = ThumbnailCacheService.CacheHitRate,
             thumbnailCachedImages = ThumbnailCacheService.CachedImages,
             thumbnailCacheRequests = ThumbnailCacheService.CacheRequests,
+            epgCacheHitRate = EpgCacheService.CacheHitRate,
+            epgCacheHits = EpgCacheService.CacheHits,
+            epgCacheMisses = EpgCacheService.CacheMisses,
+            epgPrefetchHits = EpgCacheService.PrefetchHits,
         });
     }
 
@@ -363,25 +367,13 @@ public class XtreamController : ControllerBase
     {
         try
         {
-            var cacheDir = GetThumbnailCacheDirectory();
-
-            if (!Directory.Exists(cacheDir))
-            {
-                return Ok(new
-                {
-                    fileCount = 0,
-                    totalSizeMB = 0.0,
-                });
-            }
-
-            var files = Directory.GetFiles(cacheDir, "*.*", SearchOption.AllDirectories);
-            var totalBytes = files.Sum(f => new FileInfo(f).Length);
-            var totalSizeMB = totalBytes / 1024.0 / 1024.0;
-
             return Ok(new
             {
-                fileCount = files.Length,
-                totalSizeMB = totalSizeMB,
+                fileCount = ThumbnailCacheService.TotalCachedFiles,
+                totalSizeMB = ThumbnailCacheService.TotalCacheSize / 1024.0 / 1024.0,
+                cacheHitRate = ThumbnailCacheService.CacheHitRate,
+                cacheRequests = ThumbnailCacheService.CacheRequests,
+                cachedImages = ThumbnailCacheService.CachedImages,
             });
         }
         catch (Exception ex)
@@ -398,56 +390,71 @@ public class XtreamController : ControllerBase
     /// <summary>
     /// Clear all cached thumbnails.
     /// </summary>
-    /// <returns>Number of deleted files and freed space.</returns>
+    /// <param name="thumbnailCacheService">The thumbnail cache service.</param>
+    /// <returns>Success message.</returns>
     [Authorize(Policy = "RequiresElevation")]
     [HttpPost("ClearThumbnailCache")]
-    public ActionResult<object> ClearThumbnailCache()
+    public ActionResult<object> ClearThumbnailCache([FromServices] ThumbnailCacheService thumbnailCacheService)
     {
         try
         {
-            var cacheDir = GetThumbnailCacheDirectory();
+            var beforeFiles = ThumbnailCacheService.TotalCachedFiles;
+            var beforeSize = ThumbnailCacheService.TotalCacheSize;
 
-            if (!Directory.Exists(cacheDir))
-            {
-                return Ok(new
-                {
-                    deletedFiles = 0,
-                    freedSpaceMB = 0.0,
-                });
-            }
-
-            var files = Directory.GetFiles(cacheDir, "*.*", SearchOption.AllDirectories);
-            var totalBytes = files.Sum(f => new FileInfo(f).Length);
-            var freedSpaceMB = totalBytes / 1024.0 / 1024.0;
-            var deletedCount = files.Length;
-
-            foreach (var file in files)
-            {
-                System.IO.File.Delete(file);
-            }
-
-            // Clean up empty subdirectories
-            var dirs = Directory.GetDirectories(cacheDir, "*", SearchOption.AllDirectories);
-            foreach (var dir in dirs.OrderByDescending(d => d.Length))
-            {
-                if (!Directory.EnumerateFileSystemEntries(dir).Any())
-                {
-                    Directory.Delete(dir);
-                }
-            }
+            thumbnailCacheService.ClearCache();
 
             return Ok(new
             {
-                deletedFiles = deletedCount,
-                freedSpaceMB = freedSpaceMB,
+                success = true,
+                message = "Thumbnail cache cleared successfully",
+                deletedFiles = beforeFiles,
+                freedSpaceMB = beforeSize / 1024.0 / 1024.0,
             });
         }
         catch (Exception ex)
         {
             return Ok(new
             {
-                deletedFiles = 0,
-                freedSpaceMB = 0.0,
+                success = false,
+                error = ex.Message,
+            });
+        }
+    }
+
+    /// <summary>
+    /// Trigger manual thumbnail cache cleanup (removes old files based on retention policy).
+    /// </summary>
+    /// <param name="thumbnailCacheService">The thumbnail cache service.</param>
+    /// <returns>Success message.</returns>
+    [Authorize(Policy = "RequiresElevation")]
+    [HttpPost("TriggerThumbnailCleanup")]
+    public ActionResult<object> TriggerThumbnailCleanup([FromServices] ThumbnailCacheService thumbnailCacheService)
+    {
+        try
+        {
+            var beforeFiles = ThumbnailCacheService.TotalCachedFiles;
+            var beforeSize = ThumbnailCacheService.TotalCacheSize;
+
+            thumbnailCacheService.TriggerCleanup();
+
+            var deletedFiles = beforeFiles - ThumbnailCacheService.TotalCachedFiles;
+            var freedSize = beforeSize - ThumbnailCacheService.TotalCacheSize;
+
+            return Ok(new
+            {
+                success = true,
+                message = "Thumbnail cleanup completed",
+                deletedFiles = deletedFiles,
+                freedSpaceMB = freedSize / 1024.0 / 1024.0,
+                remainingFiles = ThumbnailCacheService.TotalCachedFiles,
+                remainingSizeMB = ThumbnailCacheService.TotalCacheSize / 1024.0 / 1024.0,
+            });
+        }
+        catch (Exception ex)
+        {
+            return Ok(new
+            {
+                success = false,
                 error = ex.Message,
             });
         }

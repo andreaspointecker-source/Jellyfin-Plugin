@@ -127,33 +127,53 @@ public class Restream : ILiveStream, IDirectStreamProvider, IDisposable
         string channelId = MediaSource.Id;
         _logger.LogInformation("Starting restream for channel {ChannelId}.", channelId);
 
-        // Response stream is disposed manually.
-        HttpResponseMessage response = await _httpClientFactory.CreateClient(NamedClient.Default)
-            .GetAsync(_url, HttpCompletionOption.ResponseHeadersRead, openCancellationToken)
-            .ConfigureAwait(true);
-        _logger.LogDebug("Stream for channel {ChannelId} using url {Url}", channelId, _url);
-
-        // Handle a manual redirect in the case of a HTTPS to HTTP downgrade.
-        if (_redirects.Contains(response.StatusCode))
+        HttpResponseMessage? response = null;
+        try
         {
-            _logger.LogDebug("Stream for channel {ChannelId} redirected to url {Url}", channelId, response.Headers.Location);
             response = await _httpClientFactory.CreateClient(NamedClient.Default)
-                .GetAsync(response.Headers.Location, HttpCompletionOption.ResponseHeadersRead, openCancellationToken)
+                .GetAsync(_url, HttpCompletionOption.ResponseHeadersRead, openCancellationToken)
                 .ConfigureAwait(true);
-        }
+            _logger.LogDebug("Stream for channel {ChannelId} using url {Url}", channelId, _url);
 
-        _inputStream = await response.Content.ReadAsStreamAsync(CancellationToken.None).ConfigureAwait(false);
-        _copyTask = _inputStream.CopyToAsync(_buffer, _tokenSource.Token)
-            .ContinueWith(
-                (Task t) =>
-                {
-                    _logger.LogInformation("Restream for channel {ChannelId} finished with state {Status}", MediaSource.Id, t.Status);
-                    _inputStream.Close();
-                    _inputStream = null;
-                },
-                CancellationToken.None,
-                TaskContinuationOptions.None,
-                TaskScheduler.Default);
+            // Handle a manual redirect in the case of a HTTPS to HTTP downgrade.
+            if (_redirects.Contains(response.StatusCode))
+            {
+                var redirectUrl = response.Headers.Location;
+                _logger.LogDebug("Stream for channel {ChannelId} redirected to url {Url}", channelId, redirectUrl);
+
+                // Dispose previous response before following redirect
+                response.Dispose();
+
+                response = await _httpClientFactory.CreateClient(NamedClient.Default)
+                    .GetAsync(redirectUrl, HttpCompletionOption.ResponseHeadersRead, openCancellationToken)
+                    .ConfigureAwait(true);
+            }
+
+            // Extract stream - after this, we own the stream and response can be disposed
+            _inputStream = await response.Content.ReadAsStreamAsync(CancellationToken.None).ConfigureAwait(false);
+
+            // Dispose response now that we have the stream
+            response.Dispose();
+            response = null;
+
+            _copyTask = _inputStream.CopyToAsync(_buffer, _tokenSource.Token)
+                .ContinueWith(
+                    (Task t) =>
+                    {
+                        _logger.LogInformation("Restream for channel {ChannelId} finished with state {Status}", MediaSource.Id, t.Status);
+                        _inputStream.Close();
+                        _inputStream = null;
+                    },
+                    CancellationToken.None,
+                    TaskContinuationOptions.None,
+                    TaskScheduler.Default);
+        }
+        catch
+        {
+            // Ensure response is disposed on error
+            response?.Dispose();
+            throw;
+        }
     }
 
     /// <inheritdoc />

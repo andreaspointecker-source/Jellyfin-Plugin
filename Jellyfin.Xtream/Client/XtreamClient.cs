@@ -30,17 +30,43 @@ namespace Jellyfin.Xtream.Client;
 /// <summary>
 /// The Xtream API client implementation.
 /// </summary>
-/// <remarks>
-/// Initializes a new instance of the <see cref="XtreamClient"/> class.
-/// </remarks>
-/// <param name="client">The HTTP client used.</param>
-public class XtreamClient(HttpClient client) : IDisposable
+public class XtreamClient : IDisposable
 {
+    // TODO: MEMORY LEAK - See docs/MEMORY_LEAK_ANALYSIS.md #1
+    // This shared client is a workaround. Proper fix requires refactoring all callers to use IHttpClientFactory.
+    private static readonly Lazy<HttpClient> _sharedClient = new(CreateDefaultClient, LazyThreadSafetyMode.ExecutionAndPublication);
+
+    private readonly HttpClient _client;
+    private readonly bool _disposeClient;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="XtreamClient"/> class.
+    /// WARNING: Uses shared HttpClient to avoid socket exhaustion. Consider using IHttpClientFactory constructor instead.
     /// </summary>
-    public XtreamClient() : this(CreateDefaultClient())
+    public XtreamClient()
     {
+        _client = _sharedClient.Value;
+        _disposeClient = false; // Shared, do not dispose
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="XtreamClient"/> class using IHttpClientFactory (recommended).
+    /// </summary>
+    /// <param name="httpClientFactory">The HTTP client factory.</param>
+    public XtreamClient(IHttpClientFactory httpClientFactory)
+    {
+        _client = httpClientFactory.CreateClient("XtreamClient");
+        _disposeClient = false; // Factory manages lifecycle
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="XtreamClient"/> class with a custom HttpClient.
+    /// </summary>
+    /// <param name="client">The HTTP client used.</param>
+    public XtreamClient(HttpClient client)
+    {
+        _client = client;
+        _disposeClient = true; // We own this client, must dispose
     }
 
     private static HttpClient CreateDefaultClient()
@@ -67,7 +93,7 @@ public class XtreamClient(HttpClient client) : IDisposable
                 async () =>
                 {
                     Uri uri = new Uri(connectionInfo.BaseUrl + urlPath);
-                    string jsonContent = await client.GetStringAsync(uri, cancellationToken).ConfigureAwait(false);
+                    string jsonContent = await _client.GetStringAsync(uri, cancellationToken).ConfigureAwait(false);
                     return JsonConvert.DeserializeObject<T>(jsonContent)!;
                 },
                 null,
@@ -77,7 +103,7 @@ public class XtreamClient(HttpClient client) : IDisposable
         {
             // Direct call without queueing (original behavior)
             Uri uri = new Uri(connectionInfo.BaseUrl + urlPath);
-            string jsonContent = await client.GetStringAsync(uri, cancellationToken).ConfigureAwait(false);
+            string jsonContent = await _client.GetStringAsync(uri, cancellationToken).ConfigureAwait(false);
             return JsonConvert.DeserializeObject<T>(jsonContent)!;
         }
     }
@@ -149,12 +175,15 @@ public class XtreamClient(HttpClient client) : IDisposable
            cancellationToken);
 
     /// <summary>
-    /// Dispose the HTTP client.
+    /// Dispose the HTTP client if owned by this instance.
     /// </summary>
-    /// <param name="b">Unused.</param>
-    protected virtual void Dispose(bool b)
+    /// <param name="disposing">True if disposing managed resources.</param>
+    protected virtual void Dispose(bool disposing)
     {
-        client?.Dispose();
+        if (disposing && _disposeClient)
+        {
+            _client?.Dispose();
+        }
     }
 
     /// <inheritdoc />
