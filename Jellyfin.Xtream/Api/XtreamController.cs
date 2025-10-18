@@ -358,6 +358,29 @@ public class XtreamController : ControllerBase
     }
 
     /// <summary>
+    /// Proxy provider content through a single authenticated session.
+    /// </summary>
+    /// <param name="token">The short-lived stream token.</param>
+    /// <param name="tokenService">The token service.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The proxied stream.</returns>
+    [AllowAnonymous]
+    [HttpGet("Stream/{token}")]
+    public async Task<IActionResult> StreamByToken(
+        string token,
+        [FromServices] StreamTokenService tokenService,
+        CancellationToken cancellationToken)
+    {
+        StreamTokenService.StreamAccess? access = await tokenService.OpenStreamAsync(token, cancellationToken).ConfigureAwait(false);
+        if (access == null)
+        {
+            return NotFound();
+        }
+
+        return new StreamProxyResult(access);
+    }
+
+    /// <summary>
     /// Get thumbnail cache statistics (file count and total size).
     /// </summary>
     /// <returns>Cache statistics.</returns>

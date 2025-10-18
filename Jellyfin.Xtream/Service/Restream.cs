@@ -54,6 +54,7 @@ public class Restream : ILiveStream, IDirectStreamProvider, IDisposable
 
     private Task? _copyTask;
     private Stream? _inputStream;
+    private StreamTokenService.StreamLease? _providerLease;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Restream"/> class.
@@ -130,6 +131,11 @@ public class Restream : ILiveStream, IDirectStreamProvider, IDisposable
         HttpResponseMessage? response = null;
         try
         {
+            if (StreamTokenService.TryGetInstance(out StreamTokenService? tokenService))
+            {
+                _providerLease = await tokenService.AcquireLeaseAsync(_url, openCancellationToken).ConfigureAwait(false);
+            }
+
             response = await _httpClientFactory.CreateClient(NamedClient.Default)
                 .GetAsync(_url, HttpCompletionOption.ResponseHeadersRead, openCancellationToken)
                 .ConfigureAwait(true);
@@ -172,6 +178,12 @@ public class Restream : ILiveStream, IDirectStreamProvider, IDisposable
         {
             // Ensure response is disposed on error
             response?.Dispose();
+            if (_providerLease != null)
+            {
+                await _providerLease.DisposeAsync().ConfigureAwait(false);
+                _providerLease = null;
+            }
+
             throw;
         }
     }
@@ -186,6 +198,12 @@ public class Restream : ILiveStream, IDirectStreamProvider, IDisposable
 
         await _tokenSource.CancelAsync().ConfigureAwait(false);
         await _copyTask.ConfigureAwait(false);
+
+        if (_providerLease != null)
+        {
+            await _providerLease.DisposeAsync().ConfigureAwait(false);
+            _providerLease = null;
+        }
     }
 
     /// <inheritdoc />
@@ -212,6 +230,11 @@ public class Restream : ILiveStream, IDirectStreamProvider, IDisposable
             _inputStream?.Dispose();
             _buffer.Dispose();
             _tokenSource.Dispose();
+            if (_providerLease != null)
+            {
+                _providerLease.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                _providerLease = null;
+            }
         }
     }
 

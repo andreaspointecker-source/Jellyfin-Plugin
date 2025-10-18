@@ -13,6 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+using System.Net.Http;
 using Jellyfin.Xtream.Providers;
 using Jellyfin.Xtream.Service;
 using MediaBrowser.Controller;
@@ -21,6 +22,7 @@ using MediaBrowser.Controller.LiveTv;
 using MediaBrowser.Controller.Plugins;
 using MediaBrowser.Controller.Providers;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Xtream;
 
@@ -47,5 +49,12 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<IPreRefreshProvider, XtreamVodProvider>();
         serviceCollection.AddSingleton<ThumbnailCacheService>();
         serviceCollection.AddSingleton<EpgCacheService>();
+        serviceCollection.AddHttpClient();
+        serviceCollection.AddSingleton(sp =>
+        {
+            IHttpClientFactory httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+            ILogger<StreamTokenService> logger = sp.GetRequiredService<ILogger<StreamTokenService>>();
+            return new StreamTokenService(httpClientFactory, applicationHost, logger);
+        });
     }
 }

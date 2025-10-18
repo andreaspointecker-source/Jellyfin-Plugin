@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.0.21] - 2025-01-18
+
+### Added
+- Token-based stream proxy endpoint (`/Xtream/Stream/{token}`) that serves short-lived playback URLs without exposing credentials.
+
+### Changed
+- All VOD, series, and catch-up playback flows through the proxy to honour single-connection Xtream provider limits.
+- Live restreams acquire the same provider lease, preventing parallel channel connections while the provider allows only one session.
+
+### Security
+- Playback URLs emitted to clients no longer contain Xtream usernames or passwords.
+
+---
+
 ## [0.0.20] - 2025-01-18
 
 ### 🚀 Added
