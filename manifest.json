@@ -10,6 +10,15 @@
     "imageUrl": "https://raw.githubusercontent.com/andreaspointecker-source/Jellyfin-Plugin/master/Jellyfin.Xtream/icon/CandyTV.png",
     "versions": [
       {
+        "version": "0.0.20",
+        "changelog": "Major performance & stability update: adaptive EPG caching with smart prefetching, thumbnail cache maintenance window plus cleanup APIs, fixes for critical HttpClient/socket leaks, graceful shutdown improvements, and memory cache limits.",
+        "targetAbi": "10.10.7.0",
+        "sourceUrl": "https://github.com/andreaspointecker-source/Jellyfin-Plugin/releases/download/v0.0.20/CandyTv_0.0.20.zip",
+        "checksum": "59632240e294c7989ce28eeaecffbd64",
+        "timestamp": "2025-10-18T18:30:00Z",
+        "image": "CandyTV.png"
+      },
+      {
         "version": "0.0.15",
         "changelog": "Fixed live stream playback by adding http:// prefix to stream URLs. Resolves ffprobe error 'No such file or directory'.",
         "targetAbi": "10.10.7.0",
