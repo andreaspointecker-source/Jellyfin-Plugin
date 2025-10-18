@@ -10,6 +10,15 @@
     "imageUrl": "https://raw.githubusercontent.com/andreaspointecker-source/Jellyfin-Plugin/master/Jellyfin.Xtream/icon/CandyTV.png",
     "versions": [
       {
+        "version": "0.0.23",
+        "changelog": "Restored direct Xtream URLs so streams again include credentials in the path, fixing playback failures caused by single-use proxy tokens.",
+        "targetAbi": "10.10.7.0",
+        "sourceUrl": "https://github.com/andreaspointecker-source/Jellyfin-Plugin/releases/download/v0.0.23/CandyTv_0.0.23.zip",
+        "checksum": "39fed39e506a54d95a6feceddd3579d5",
+        "timestamp": "2025-10-18T22:05:00Z",
+        "image": "CandyTV.png"
+      },
+      {
         "version": "0.0.22",
         "changelog": "Hotfix: rely on Jellyfin’s default memory cache configuration to avoid cross-plugin errors such as “Cache entry must specify a value for Size” when TMDb image lookups run alongside CandyTv.",
         "targetAbi": "10.10.7.0",
@@ -155,3 +164,4 @@
     ]
   }
 ]
+

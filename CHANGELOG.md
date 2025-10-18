@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.0.23] - 2025-10-18
+
+### Fixed
+- Reverted stream URL proxying so VOD/series/catch-up again expose the original Xtream URLs (with username/password) that Jellyfin clients expect.
+- Resolves playback failures caused by clients issuing preliminary HEAD/RANGE requests that invalidated single-use tokens.
+
+### Note
+- The proxy and token infrastructure remains in code for future opt-in, but is currently disabled to prioritise compatibility.
+
+---
+
 ## [0.0.22] - 2025-10-18
 
 ### Fixed

@@ -420,14 +420,6 @@ public partial class StreamService
             uri = $"{config.BaseUrl}/streaming/timeshift.php?username={config.Username}&password={config.Password}&stream={id}&start={startString}&duration={durationMinutes}";
         }
 
-        string streamPath = uri;
-        bool isProxied = false;
-        if (!restream && StreamTokenService.TryGetInstance(out StreamTokenService? tokenService))
-        {
-            streamPath = tokenService.CreateProxyUrl(type, id, uri, extension);
-            isProxied = true;
-        }
-
         bool isLive = type == StreamType.Live;
         return new MediaSourceInfo()
         {
@@ -470,10 +462,10 @@ public partial class StreamService
                 }
             ],
             Name = "default",
-            Path = streamPath,
+            Path = uri,
             Protocol = MediaProtocol.Http,
             RequiresClosing = restream,
-            RequiresOpening = restream || isProxied,
+            RequiresOpening = restream,
             SupportsDirectPlay = true,
             SupportsDirectStream = true,
             SupportsProbing = true,
