@@ -396,16 +396,13 @@ public partial class StreamService
         VideoInfo? videoInfo = null,
         AudioInfo? audioInfo = null)
     {
-        string prefix = string.Empty;
-        switch (type)
+        string prefix = type switch
         {
-            case StreamType.Series:
-                prefix = "/series";
-                break;
-            case StreamType.Vod:
-                prefix = "/movie";
-                break;
-        }
+            StreamType.Series => "/series",
+            StreamType.Vod => "/movie",
+            StreamType.Live => "/live",
+            _ => string.Empty,
+        };
 
         PluginConfiguration config = Plugin.Instance.Configuration;
         string uri = $"{config.BaseUrl}{prefix}/{config.Username}/{config.Password}/{id}";

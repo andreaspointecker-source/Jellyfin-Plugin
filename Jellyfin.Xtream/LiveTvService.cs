@@ -184,7 +184,11 @@ public class LiveTvService(IServerApplicationHost appHost, IHttpClientFactory ht
         }
 
         Plugin plugin = Plugin.Instance;
-        MediaSourceInfo mediaSourceInfo = plugin.StreamService.GetMediaSourceInfo(StreamType.Live, channel, restream: true);
+        var streams = await plugin.StreamService.GetLiveStreamsWithOverrides(cancellationToken).ConfigureAwait(false);
+        StreamInfo? streamInfo = streams.FirstOrDefault(s => s.StreamId == channel);
+        string? extension = string.IsNullOrWhiteSpace(streamInfo?.ContainerExtension) ? "ts" : streamInfo!.ContainerExtension;
+
+        MediaSourceInfo mediaSourceInfo = plugin.StreamService.GetMediaSourceInfo(StreamType.Live, channel, extension, restream: true);
         ILiveStream? stream = currentLiveStreams.Find(stream => stream.TunerHostId == Restream.TunerHost && stream.MediaSource.Id == mediaSourceInfo.Id);
 
         if (stream == null)

@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.0.24] - 2025-10-18
+
+### Fixed
+- Live channels now include the Xtream `/live` segment and container extension (e.g. `.ts`) when building stream URLs before restreaming, restoring compatibility with providers that require credential-bearing paths.
+
+### Compatibility
+- Reconnecting to a channel no longer results in an instant restream shutdown caused by invalid proxy URLs introduced in previous releases.
+
+---
+
 ## [0.0.23] - 2025-10-18
 
 ### Fixed
