@@ -27,8 +27,8 @@ namespace Jellyfin.Xtream.Service;
 /// </summary>
 public class ChannelListService
 {
-    private const int FuzzyMatchThreshold = 60;
-    private const int TopMatchCount = 5;
+    private const int FuzzyMatchThreshold = 40;
+    private const int TopMatchCount = 15;
 
     private static string NormalizeChannelName(string name)
     {
